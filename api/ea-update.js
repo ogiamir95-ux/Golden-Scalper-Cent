@@ -71,6 +71,8 @@ export default async function handler(req, res) {
       endMinute: Number(body.endMinute ?? 0),
       accountLogin,
       accountServer: String(body.accountServer ?? ""),
+      accountType: String(body.accountType ?? "DEMO"),
+      newsStatus: String(body.newsStatus ?? "AMAN"),
       licenseKeyHash,
       updatedAt: Date.now(),
     };
@@ -79,14 +81,31 @@ export default async function handler(req, res) {
     await redis.set(K.heartbeat, Date.now());
     await redis.sadd(ACCOUNTS_SET, accountLogin);
 
-    // Opsional: EA bisa mengirim satu baris log aktivitas baru sekaligus
-    if (body.logText) {
-      const entry = JSON.stringify({
-        text: String(body.logText),
-        type: String(body.logType || "info"),
-        time: Date.now(),
-      });
-      await redis.lpush(K.log, entry);
+    // EA mengirim SEMUA event aktivitas yang terjadi sejak sync terakhir
+    // lewat array `logQueue` (baru) — supaya beberapa event yang terjadi
+    // berdekatan (mis. buka layer baru lalu langsung TP) tidak saling
+    // menimpa dan semuanya tercatat di dashboard.
+    // `logText`/`logType` (lama, singular) tetap didukung untuk EA versi
+    // lama yang belum di-upgrade, supaya tidak breaking change.
+    const logEntries = [];
+    if (Array.isArray(body.logQueue)) {
+      for (const item of body.logQueue) {
+        const text = String(item?.text ?? "").trim();
+        if (!text) continue;
+        logEntries.push({ text, type: String(item?.type || "info"), time: Date.now() });
+      }
+    } else if (body.logText) {
+      logEntries.push({ text: String(body.logText), type: String(body.logType || "info"), time: Date.now() });
+    }
+
+    if (logEntries.length > 0) {
+      // lpush menaruh entri terbaru di depan list; supaya urutan tampil di
+      // dashboard tetap kronologis (terbaru di atas), push dari yang
+      // PALING BARU dulu (iterasi terbalik) — hasil akhirnya: index 0 di
+      // Redis = entri terakhir dalam batch ini, sesuai urutan waktu asli.
+      for (let i = logEntries.length - 1; i >= 0; i--) {
+        await redis.lpush(K.log, JSON.stringify(logEntries[i]));
+      }
       await redis.ltrim(K.log, 0, 29); // simpan 30 entri terakhir
     }
 
