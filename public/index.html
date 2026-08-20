@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Golden Cent Scalper Pro — Control Panel</title>
+<title>Goverment Community</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -394,9 +394,12 @@ button{font-family:inherit;}
   padding:7px 14px;min-width:180px;justify-content:center;
 }
 .jurnal-month-label select{
-  background:transparent;border:none;color:var(--gold);font-family:var(--font-mono);
+  background:transparent !important;background-image:none !important;border:none !important;color:var(--gold);font-family:var(--font-mono);
   font-size:13px;font-weight:600;cursor:pointer;
+  -webkit-appearance:none !important;-moz-appearance:none !important;appearance:none !important;
+  padding:0 !important;margin:0;text-align:center;text-align-last:center;
 }
+.jurnal-month-label select::-ms-expand{display:none;}
 
 .jurnal-cal{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;position:relative;width:100%;max-width:100%;}
 .jurnal-cal .dow{
@@ -408,7 +411,7 @@ button{font-family:inherit;}
 .jurnal-day{
   position:relative;aspect-ratio:1/0.82;border-radius:10px;padding:8px 9px;
   background:var(--surface-2);border:1px solid var(--border-soft);
-  display:flex;flex-direction:column;justify-content:space-between;
+  display:flex;flex-direction:column;justify-content:space-between;gap:3px;
   cursor:default;transition:border-color .15s ease,transform .12s ease;
   min-width:0;overflow:hidden;
 }
@@ -418,19 +421,24 @@ button{font-family:inherit;}
 .jurnal-day.profit{background:rgba(61,220,132,.10);border-color:rgba(61,220,132,.28);}
 .jurnal-day.loss{background:rgba(255,93,93,.10);border-color:rgba(255,93,93,.28);}
 .jurnal-day.selected{border-color:var(--loss) !important;box-shadow:0 0 0 2px rgba(255,93,93,.25);}
-.jurnal-day .dnum{font-size:10.5px;color:var(--text-3);font-family:var(--font-mono);align-self:flex-end;}
+.jurnal-day .dnum{font-size:10.5px;color:var(--text-3);font-family:var(--font-mono);align-self:flex-end;flex-shrink:0;}
 .jurnal-day .dpnl{
-  font-family:var(--font-mono);font-size:12.5px;font-weight:700;line-height:1.1;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;
+  font-family:var(--font-mono);font-size:12.5px;font-weight:700;line-height:1.15;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;flex-shrink:0;
 }
 .jurnal-day.profit .dpnl{color:var(--profit);}
 .jurnal-day.loss .dpnl{color:var(--loss);}
 .jurnal-day.today{border-color:var(--gold);}
 @media(max-width:640px){
-  .jurnal-day{padding:6px 7px;}
+  .jurnal-day{padding:5px 6px;aspect-ratio:1/1;gap:2px;}
   .jurnal-day .dpnl{font-size:9.5px;}
+  .jurnal-day .dnum{font-size:9px;}
   .jurnal-cal{gap:4px;}
   .jurnal-month-label{min-width:0;padding:7px 10px;}
+}
+@media(max-width:380px){
+  .jurnal-day .dpnl{font-size:8.5px;}
+  .jurnal-day .dnum{font-size:8px;}
 }
 
 /* legenda profit/loss/hari-ini di atas grid */
@@ -569,8 +577,8 @@ input[type=color]{width:42px;height:32px;padding:2px;border-radius:7px;border:1p
 <div class="login-screen" id="loginScreen">
   <div class="login-aside">
     <div class="login-quote">
-      <span class="eyebrow">Control Panel · Pro</span>
-      <h2>Kendalikan strategi grid Anda dengan presisi seorang profesional.</h2>
+      <span class="eyebrow">Control Panel • Pro</span>
+      <h2>Goverment Community</h2>
       <p>Pantau equity, drawdown, dan target harian secara real-time, lalu sesuaikan setiap parameter Golden Cent Scalper Pro tanpa menyentuh terminal MT5.</p>
     </div>
     <div class="login-metrics">
@@ -590,7 +598,7 @@ input[type=color]{width:42px;height:32px;padding:2px;border-radius:7px;border:1p
         </div>
       </div>
       <h1>Masuk ke Akun Anda</h1>
-      <p class="sub">Masukkan kredensial operator untuk mengakses dashboard EA.</p>
+      <p class="sub">Masukkan Kredensial Operator Untuk Mengakses Dashboard Golden Cent Pro </p>
 
       <div class="login-error hidden" id="loginError">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l10 18H2z"/><path d="M12 10v4M12 17v.01"/></svg>
@@ -619,7 +627,7 @@ input[type=color]{width:42px;height:32px;padding:2px;border-radius:7px;border:1p
         <div class="login-options">
           <label class="login-remember">
             <label class="switch"><input type="checkbox" id="loginRemember" checked><span class="slider"></span></label>
-            Ingat saya di sesi ini
+            Ingat Saya Di Sesi Ini
           </label>
           <span class="login-link" id="forgotLink">Lupa password?</span>
         </div>
@@ -632,10 +640,10 @@ input[type=color]{width:42px;height:32px;padding:2px;border-radius:7px;border:1p
 
       <div class="login-demo-hint">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v.01M12 11v5"/></svg>
-        <span>Login divalidasi <b>real-time ke EA</b>: Username = Nomor Akun MT5, Password = Kode Lisensi. Jika lisensi EXPIRED atau EA offline, login otomatis ditolak.</span>
+        <span>Login Divalidasi <b>Real-Time Ke Expert Adviaor </b>: Username = Nomor Akun MT5, Password = Kode Lisensi. Jika lisensi EXPIRED atau Expert Advisor Offline, login Otomatis Ditolak.</span>
       </div>
 
-      <div class="login-foot">Butuh akses? Hubungi <b>Telegram @daillytrader</b></div>
+      <div class="login-foot">Butuh akses? Hubungi <b>Telegram @DAILLYTRADER24HOURS</b></div>
     </div>
   </div>
 </div>
@@ -781,13 +789,13 @@ input[type=color]{width:42px;height:32px;padding:2px;border-radius:7px;border:1p
 
       <div class="status-banner">
         <span class="pulse"></span>
-        <span>Status: <b id="statusText">RUNNING — Grid aktif pada XAUUSD</b></span>
+        <span>Status: <b id="statusText">RUNNING — Active Expert Advisor</b></span>
         <span class="muted" id="clockText">--:--:-- WIB</span>
       </div>
 
       <div class="stat-grid">
         <div class="card stat-card"><div class="k">Equity</div><div class="v" id="statEquity">$0.00</div><div class="d">Balance <span id="statBalance">$0.00</span></div></div>
-        <div class="card stat-card"><div class="k">P/L Harian</div><div class="v up" id="statPnl">+$0.00</div><div class="d">sejak 00:00 WIB</div></div>
+        <div class="card stat-card"><div class="k">P/L Harian</div><div class="v up" id="statPnl">+$0.00</div><div class="d">Sejak 00:00 WIB</div></div>
         <div class="card stat-card"><div class="k">Floating P/L</div><div class="v" id="statFloat">$0.00</div><div class="d">Drawdown <span id="statDD">0.00%</span></div></div>
         <div class="card stat-card"><div class="k">Total Lot Aktif</div><div class="v" id="statLots">0.00</div><div class="d">Layer <span id="statLayers">0 / 0</span></div></div>
       </div>
@@ -795,7 +803,7 @@ input[type=color]{width:42px;height:32px;padding:2px;border-radius:7px;border:1p
       <div class="dash-row">
         <div class="card panel-card">
           <div class="section-title-row"><h3>Target Cycle Harian</h3></div>
-          <p class="sub">Progres menuju target profit harian ($<span id="targetLabel">50.00</span>)</p>
+          <p class="sub">Progres Menuju Target Profit Harian ($<span id="targetLabel">50.00</span>)</p>
           <div class="gauge-wrap">
             <div class="gauge" id="gauge" style="--pct:0;">
               <div class="gauge-inner"><div class="pct" id="gaugePct">0%</div><div class="lbl">Tercapai</div></div>
@@ -811,13 +819,13 @@ input[type=color]{width:42px;height:32px;padding:2px;border-radius:7px;border:1p
 
         <div class="card panel-card">
           <div class="section-title-row"><h3>Status Sistem</h3></div>
-          <p class="sub">Sama seperti panel info pada chart MT5</p>
+          <p class="sub">Sama Seperti Panel Info Pada Chart MT5</p>
           <div class="info-rows">
-            <div class="info-row"><span class="lab">Symbol</span><span class="val">XAUUSD</span></div>
-            <div class="info-row"><span class="lab">Tipe Akun</span><span class="val badge badge-ok">DEMO</span></div>
+            <div class="info-row"><span class="lab">Symbol</span><span class="val" id="rowSymbol">XAUUSD</span></div>
+            <div class="info-row"><span class="lab">Tipe Akun</span><span class="val" id="rowAccType"><span class="badge badge-ok">DEMO</span></span></div>
             <div class="info-row"><span class="lab">Magic Number</span><span class="val" id="rowMagic">88888</span></div>
             <div class="info-row"><span class="lab">Status Lisensi</span><span class="val" id="rowLicense"><span class="badge badge-ok">VALID</span></span></div>
-            <div class="info-row"><span class="lab">Filter News</span><span class="val badge badge-ok">AMAN</span></div>
+            <div class="info-row"><span class="lab">Filter News</span><span class="val" id="rowNewsStatus"><span class="badge badge-ok">AMAN</span></span></div>
             <div class="info-row"><span class="lab">Jam Trading</span><span class="val" id="rowHours">09:00 – 17:30 WIB</span></div>
           </div>
         </div>
@@ -828,7 +836,7 @@ input[type=color]{width:42px;height:32px;padding:2px;border-radius:7px;border:1p
           <h3>Log Aktivitas</h3>
           <span class="eyebrow log-live"><span class="dot-sm"></span>Live</span>
         </div>
-        <p class="sub">Riwayat aksi EA terbaru (disimulasikan)</p>
+        <p class="sub">Riwayat aksi Expert Advisor Terbaru (disimulasikan)</p>
         <div class="timeline" id="activityLog"></div>
       </div>
     </div>
@@ -1478,6 +1486,21 @@ async function pollState(){
         } else if(s.licenseStatus === 'INVALID' || s.licenseStatus === 'EXPIRED'){
           rowLic.innerHTML = '<span class="badge badge-bad">'+s.licenseStatus+'</span>';
         }
+      }
+
+      const rowSymbol = document.getElementById('rowSymbol');
+      if(rowSymbol && s.symbol) rowSymbol.textContent = s.symbol;
+
+      const rowAccType = document.getElementById('rowAccType');
+      if(rowAccType && s.accountType){
+        const isReal = s.accountType === 'REAL';
+        rowAccType.innerHTML = '<span class="badge '+(isReal ? 'badge-bad' : 'badge-ok')+'">'+s.accountType+'</span>';
+      }
+
+      const rowNewsStatus = document.getElementById('rowNewsStatus');
+      if(rowNewsStatus && s.newsStatus){
+        const isPaused = s.newsStatus !== 'AMAN';
+        rowNewsStatus.innerHTML = '<span class="badge '+(isPaused ? 'badge-warn' : 'badge-ok')+'">'+s.newsStatus+'</span>';
       }
     }
 
