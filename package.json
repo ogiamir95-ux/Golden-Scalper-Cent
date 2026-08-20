@@ -1,0 +1,12 @@
+{
+  "name": "golden-scalper-pro-panel",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'static site, no build needed'"
+  },
+  "dependencies": {
+    "@upstash/redis": "^1.34.3"
+  }
+}
