@@ -1,16 +1,16 @@
-import { redis, keys, setCors, simpleHash, createSessionToken } from "../lib/redis.js";
+import { getAccount, isOnline, setCors, simpleHash, createSessionToken } from "../lib/db.js";
 
 // Login web: Username = nomor akun MT5 (accountLogin), Password = kode lisensi EA.
 // Tidak ada autentikasi "asal isi" — kredensial dicocokkan dengan data ASLI
 // yang terakhir dikirim EA lewat /api/ea-update. Jika lisensi EA berstatus
 // EXPIRED/INVALID atau EA belum pernah online, login ditolak.
 //
-// MULTI-TENANT: username = partisi data di Redis (lihat keys() di
-// lib/redis.js), jadi setiap customer otomatis hanya bisa login & melihat
-// datanya sendiri. Login sukses mengembalikan `sessionToken` (HMAC
-// bertanda waktu) yang WAJIB disertakan browser di setiap request
-// berikutnya (state/ea-command/ea-config) sebagai bukti bahwa browser
-// tsb memang sudah lolos verifikasi untuk akun tersebut.
+// MULTI-TENANT: username = baris di tabel `accounts` (Supabase), jadi
+// setiap customer otomatis hanya bisa login & melihat datanya sendiri.
+// Login sukses mengembalikan `sessionToken` (HMAC bertanda waktu) yang
+// WAJIB disertakan browser di setiap request berikutnya
+// (state/ea-command/ea-config) sebagai bukti bahwa browser tsb memang
+// sudah lolos verifikasi untuk akun tersebut.
 export default async function handler(req, res) {
   setCors(res);
   if (req.method === "OPTIONS") return res.status(200).end();
@@ -25,12 +25,9 @@ export default async function handler(req, res) {
       return res.status(400).json({ ok: false, error: "Username atau password tidak boleh kosong" });
     }
 
-    const K = keys(username);
-    const [stateRaw, heartbeat] = await Promise.all([redis.get(K.state), redis.get(K.heartbeat)]);
-    const state = stateRaw ? (typeof stateRaw === "string" ? JSON.parse(stateRaw) : stateRaw) : null;
-
-    const lastSeen = heartbeat ? Number(heartbeat) : 0;
-    const online = lastSeen > 0 && (Date.now() - lastSeen) < 20000;
+    const account = await getAccount(username);
+    const state = account?.state || null;
+    const online = isOnline(account?.last_seen_at);
 
     if (!state || !state.accountLogin) {
       return res.status(403).json({
