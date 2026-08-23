@@ -975,6 +975,42 @@ input[type=color]{width:42px;height:32px;padding:2px;border-radius:7px;border:1p
           </table>
         </div>
       </div>
+
+      <!-- ===== GENERATE KODE LISENSI EA ===== -->
+      <div class="card panel-card" style="margin-top:16px;">
+        <div class="section-title-row"><h3>Generate Kode Lisensi EA</h3></div>
+        <p class="sub">Kode dibuat dengan algoritma yang sama persis dengan script LicenseKeyGenerator.mq5 — akan langsung diterima oleh EA. Kode <b>tidak disimpan</b> di server, hanya tampil sekali di sini untuk disalin.</p>
+        <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin-top:10px;">
+          <div class="login-field" style="flex:1;min-width:160px;margin:0;">
+            <label for="genAccountLogin">Akun ID MT5 (wajib)</label>
+            <input class="input" id="genAccountLogin" placeholder="mis. 12345678" inputmode="numeric">
+          </div>
+          <div class="login-field" style="width:130px;margin:0;">
+            <label for="genValidDays">Masa berlaku (hari)</label>
+            <input class="input" id="genValidDays" type="number" min="1" max="3650" value="30">
+          </div>
+          <div class="login-field" style="width:150px;margin:0;">
+            <label for="genMagicNumber">Magic Number</label>
+            <input class="input" id="genMagicNumber" type="number" min="1" value="88888">
+          </div>
+          <button class="btn btn-gold" id="btnGenerateLicense" style="height:42px;">Generate Kode</button>
+        </div>
+
+        <div id="genResultBox" class="hidden" style="margin-top:16px;padding:14px;border:1px solid var(--border-soft);border-radius:10px;background:rgba(232,185,77,.06);">
+          <div style="font-size:12px;color:var(--text-3);margin-bottom:6px;">Kode Lisensi (untuk akun <span id="genResultAccount"></span>) — salin &amp; kirim ke customer:</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <code id="genResultKey" style="font-size:15px;font-weight:700;letter-spacing:.5px;color:var(--gold);word-break:break-all;"></code>
+            <button class="btn btn-ghost btn-sm" id="btnCopyGenResult">Salin</button>
+          </div>
+          <div style="font-size:12px;color:var(--text-3);margin-top:8px;">
+            Berlaku sampai: <b id="genResultExpiry"></b> &nbsp;|&nbsp; Magic Number: <b id="genResultMagic"></b>
+          </div>
+          <div style="font-size:11.5px;color:var(--text-3);margin-top:6px;">
+            Instruksikan customer untuk paste kode ini ke input <b>InpLicenseKey</b> pada EA yang dipasang di akun MT5 #<span id="genResultAccount2"></span>. Magic Number pada EA (InpMagicNumberDefault) harus sama dengan <b id="genResultMagic2"></b>.
+          </div>
+        </div>
+        <div id="genErrorBox" class="hidden" style="margin-top:12px;color:#ff9090;font-size:12.5px;"></div>
+      </div>
     </div>
 
     <!-- ============ DOWNLOAD EA PAGE (custom) ============ -->
@@ -1263,6 +1299,13 @@ document.querySelectorAll('.save-btn').forEach(b=>b.addEventListener('click', as
    NAVIGATION
    ============================================================ */
 function goPage(id){
+  // Cegah non-admin membuka halaman admin secara paksa (mis. lewat konsol
+  // browser) — API backend sudah menolak (403), ini tambahan agar tampilan
+  // Admin Panel juga tidak sempat terlihat sama sekali oleh user biasa.
+  if(id === 'admin' && currentRole !== 'admin'){
+    showToast('Akses ditolak — khusus admin');
+    id = 'dashboard';
+  }
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active', n.dataset.page===id));
@@ -2132,6 +2175,7 @@ async function loadAdminUsers(){
           ${u.status !== 'approved'
             ? `<button class="btn btn-gold btn-sm admin-approve-btn" data-id="${u.id}">Approve</button>`
             : `<button class="btn btn-ghost btn-sm admin-revoke-btn" data-id="${u.id}">Set Pending</button>`}
+          <button class="btn btn-ghost btn-sm admin-genkey-btn" data-id="${u.id}">Generate Key</button>
         </td>
       </tr>
     `).join('');
@@ -2148,6 +2192,21 @@ async function loadAdminUsers(){
     });
     body.querySelectorAll('.admin-revoke-btn').forEach(btn=>{
       btn.addEventListener('click', ()=> adminUpdateUser(btn.dataset.id, { status: 'pending' }));
+    });
+    body.querySelectorAll('.admin-genkey-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const id = btn.dataset.id;
+        const input = body.querySelector(`.admin-account-input[data-id="${id}"]`);
+        const acc = (input && input.value.trim()) || '';
+        if(!acc){
+          showToast('Isi & simpan Akun ID MT5 user ini dulu');
+          return;
+        }
+        document.getElementById('genAccountLogin').value = acc;
+        document.getElementById('genResultBox').classList.add('hidden');
+        document.getElementById('genErrorBox').classList.add('hidden');
+        document.getElementById('genAccountLogin').scrollIntoView({behavior:'smooth', block:'center'});
+      });
     });
   } catch(err){
     body.innerHTML = '<tr><td colspan="5" style="padding:14px 6px;color:#ff9090;">Gagal menghubungi server</td></tr>';
@@ -2172,6 +2231,69 @@ async function adminUpdateUser(id, patch){
     showToast('Gagal menghubungi server');
   }
 }
+
+/* ============================================================
+   GENERATE KODE LISENSI EA — pengganti web dari script
+   LicenseKeyGenerator.mq5. Kode dibuat server-side (algoritma sama
+   persis dengan MQL5) lalu ditampilkan sekali untuk disalin admin.
+   ============================================================ */
+document.getElementById('btnGenerateLicense').addEventListener('click', async ()=>{
+  const accountLogin = document.getElementById('genAccountLogin').value.trim();
+  const validDays = document.getElementById('genValidDays').value.trim();
+  const magicNumber = document.getElementById('genMagicNumber').value.trim();
+  const resultBox = document.getElementById('genResultBox');
+  const errorBox = document.getElementById('genErrorBox');
+  resultBox.classList.add('hidden');
+  errorBox.classList.add('hidden');
+
+  if(!accountLogin){
+    errorBox.textContent = 'Akun ID MT5 wajib diisi';
+    errorBox.classList.remove('hidden');
+    return;
+  }
+
+  const btn = document.getElementById('btnGenerateLicense');
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Membuat...';
+  try{
+    const r = await fetch(API_BASE + '/api/admin-generate-license', {
+      method:'POST',
+      headers: adminHeaders(),
+      body: JSON.stringify({ accountLogin, validDays: Number(validDays), magicNumber: Number(magicNumber) })
+    });
+    const data = await r.json();
+    if(data.ok){
+      document.getElementById('genResultAccount').textContent = data.accountLogin;
+      document.getElementById('genResultAccount2').textContent = data.accountLogin;
+      document.getElementById('genResultKey').textContent = data.key;
+      document.getElementById('genResultExpiry').textContent = data.expiryDate;
+      document.getElementById('genResultMagic').textContent = data.magicNumber;
+      document.getElementById('genResultMagic2').textContent = data.magicNumber;
+      resultBox.classList.remove('hidden');
+      resultBox.scrollIntoView({behavior:'smooth', block:'center'});
+    } else {
+      errorBox.textContent = data.error || 'Gagal membuat kode lisensi';
+      errorBox.classList.remove('hidden');
+    }
+  } catch(err){
+    errorBox.textContent = 'Gagal menghubungi server';
+    errorBox.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+});
+
+document.getElementById('btnCopyGenResult').addEventListener('click', async ()=>{
+  const key = document.getElementById('genResultKey').textContent;
+  try{
+    await navigator.clipboard.writeText(key);
+    showToast('Kode lisensi disalin');
+  } catch(err){
+    showToast('Gagal menyalin — salin manual');
+  }
+});
 
 document.getElementById('btnAdminRefresh').addEventListener('click', loadAdminUsers);
 
