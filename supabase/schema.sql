@@ -5,15 +5,20 @@
 
 -- Tabel utama: satu baris per akun MT5 (accountLogin).
 create table if not exists accounts (
-  account_login     text primary key,
-  state             jsonb,
-  config            jsonb,
-  pending_command   text,
-  license_key_hash  text,
-  last_seen_at      timestamptz,
-  updated_at        timestamptz not null default now(),
-  created_at        timestamptz not null default now()
+  account_login        text primary key,
+  state                jsonb,
+  config               jsonb,
+  pending_command      text,
+  license_key_hash     text,
+  license_expires_at   date,
+  last_seen_at         timestamptz,
+  updated_at           timestamptz not null default now(),
+  created_at           timestamptz not null default now()
 );
+
+-- Migrasi untuk database yang sudah ada sebelum kolom ini ditambahkan
+-- (aman dijalankan berkali-kali — no-op jika kolom sudah ada).
+alter table accounts add column if not exists license_expires_at date;
 
 -- Log aktivitas EA
 create table if not exists ea_logs (
@@ -91,6 +96,12 @@ alter table accounts enable row level security;
 alter table ea_logs enable row level security;
 alter table journal_entries enable row level security;
 alter table web_users enable row level security;
+
+-- ============================================================
+-- MIGRASI (jalankan ini SAJA di Supabase SQL Editor jika database
+-- sudah pernah dibuat sebelumnya — cukup sekali, aman diulang):
+-- ============================================================
+-- alter table accounts add column if not exists license_expires_at date;
 
 -- ============================================================
 -- Membuat admin PERTAMA — jalankan manual satu kali di SQL Editor
