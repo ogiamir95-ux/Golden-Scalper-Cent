@@ -7,6 +7,7 @@
     "build": "echo 'static site, no build needed'"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.45.4"
+    "@supabase/supabase-js": "^2.45.4",
+    "bcryptjs": "^2.4.3"
   }
 }
