@@ -1,4 +1,4 @@
-import { setCors, verifyWebSessionToken, getSessionFromReq, generateLicenseKey } from "../lib/db.js";
+import { setCors, verifyWebSessionToken, getSessionFromReq, generateLicenseKey, saveLicenseExpiryFallback } from "../lib/db.js";
 
 // Khusus ADMIN — generate kode lisensi EA dari web, pengganti script
 // LicenseKeyGenerator.mq5 (drag & drop ke chart). Algoritma checksum
@@ -38,6 +38,18 @@ export default async function handler(req, res) {
     }
 
     const result = generateLicenseKey(accountLogin, validDays, magicNumber);
+
+    // Simpan tanggal expiry sebagai fallback tampilan Admin Panel (bukan
+    // kode lisensinya sendiri — itu tetap tidak pernah disimpan). Jangan
+    // sampai kegagalan simpan fallback ini menggagalkan response kode ke
+    // admin — kode sudah jadi & valid meski baris ini gagal.
+    try {
+      await saveLicenseExpiryFallback(accountLogin, result.expiryDate.replace(
+        /^(\d{4})(\d{2})(\d{2})$/, "$1-$2-$3"
+      ));
+    } catch (fallbackErr) {
+      console.error("Gagal menyimpan fallback license_expires_at:", fallbackErr);
+    }
 
     return res.status(200).json({
       ok: true,
