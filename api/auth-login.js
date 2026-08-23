@@ -29,8 +29,8 @@ export default async function handler(req, res) {
     const password = String(body.password || "");
     const accountLogin = String(body.accountLogin || "").trim();
 
-    if (!email || !password || !accountLogin) {
-      return res.status(400).json({ ok: false, error: "Email, password, dan Akun ID wajib diisi" });
+    if (!email || !password) {
+      return res.status(400).json({ ok: false, error: "Email dan password wajib diisi" });
     }
 
     // --- Lapis 1: identitas akun WEB ---
@@ -50,6 +50,32 @@ export default async function handler(req, res) {
         reason: "PENDING_APPROVAL",
         error: "Akun Anda belum diverifikasi admin — hubungi Telegram @DAILLYTRADER24HOURS",
       });
+    }
+
+    // --- Jalur ADMIN: login cukup email + password, TANPA Akun ID MT5
+    //     dan TANPA validasi lisensi EA. Admin hanya mengelola identitas
+    //     akun web (approve/kaitkan akun), jadi tidak perlu terikat ke
+    //     satu Akun ID MT5 atau ke status online EA tertentu. ---
+    if (webUser.role === "admin") {
+      const webSessionToken = createWebSessionToken({
+        email: webUser.email,
+        role: webUser.role,
+        accountLogin: webUser.account_login || null,
+      });
+
+      return res.status(200).json({
+        ok: true,
+        isAdmin: true,
+        accountLogin: webUser.account_login || null,
+        webSessionToken,
+        email: webUser.email,
+        role: webUser.role,
+      });
+    }
+
+    // --- Untuk role non-admin, Akun ID MT5 tetap wajib (perilaku lama) ---
+    if (!accountLogin) {
+      return res.status(400).json({ ok: false, error: "Akun ID wajib diisi" });
     }
 
     if (!webUser.account_login) {
