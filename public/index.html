@@ -636,10 +636,10 @@ input[type=color]{width:42px;height:32px;padding:2px;border-radius:7px;border:1p
           </div>
         </div>
         <div class="login-field">
-          <label for="loginUser">Akun ID (Nomor Akun MT5)</label>
+          <label for="loginUser">Akun ID (Nomor Akun MT5) — kosongkan jika login sebagai admin</label>
           <div class="login-input-row">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
-            <input class="input" id="loginUser" placeholder="mis. 12345678" autocomplete="off" inputmode="numeric">
+            <input class="input" id="loginUser" placeholder="mis. 12345678 (kosongkan untuk admin)" autocomplete="off" inputmode="numeric">
           </div>
         </div>
 
@@ -1930,8 +1930,8 @@ loginForm.addEventListener('submit', async (e)=>{
   const email = document.getElementById('loginEmail').value.trim();
   const pass = document.getElementById('loginPass').value.trim();
   const user = document.getElementById('loginUser').value.trim();
-  if(!email || !pass || !user){
-    setLoginError('Email, password, dan Akun ID wajib diisi');
+  if(!email || !pass){
+    setLoginError('Email dan password wajib diisi');
     return;
   }
 
@@ -1939,7 +1939,20 @@ loginForm.addEventListener('submit', async (e)=>{
   setLoginLoading(true);
   try{
     const res = await attemptLogin(email, pass, user);
-    if(res.ok){
+    if(res.ok && res.isAdmin){
+      // --- Jalur ADMIN: tanpa Akun ID MT5, tanpa validasi lisensi EA ---
+      currentAccount = res.accountLogin || null;
+      sessionToken = null;
+      webSessionToken = res.webSessionToken;
+      currentRole = res.role;
+      const remember = document.getElementById('loginRemember').checked;
+      const session = { isAdmin: true, user: currentAccount, sessionToken: null, webSessionToken, role: currentRole, email: res.email, ts: Date.now() };
+      if(remember) sessionStorage.setItem(LOGIN_SESSION_KEY, JSON.stringify(session));
+      loginScreen.classList.add('hidden');
+      applyRoleUI();
+      showToast('Berhasil masuk sebagai admin');
+      goPage('admin');
+    } else if(res.ok){
       currentAccount = res.accountLogin;
       sessionToken = res.sessionToken;
       webSessionToken = res.webSessionToken;
@@ -2198,6 +2211,21 @@ document.getElementById('btnLogout').addEventListener('click', ()=>{
   if(!raw) return;
   try{
     const session = JSON.parse(raw);
+
+    // --- Sesi ADMIN: tidak ada sessionToken (tidak terikat Akun ID MT5),
+    //     cukup webSessionToken yang masih valid. Tidak perlu cek /api/state
+    //     karena admin tidak divalidasi lewat lisensi EA. ---
+    if(session.isAdmin && session.webSessionToken){
+      webSessionToken = session.webSessionToken;
+      currentAccount = session.user || null;
+      sessionToken = null;
+      currentRole = session.role || 'admin';
+      loginScreen.classList.add('hidden');
+      applyRoleUI();
+      goPage('admin');
+      return;
+    }
+
     if(!session.user || !session.sessionToken){
       sessionStorage.removeItem(LOGIN_SESSION_KEY);
       return;
