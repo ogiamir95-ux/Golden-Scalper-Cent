@@ -1,4 +1,12 @@
-import { setCors, verifyWebSessionToken, getSessionFromReq, generateLicenseKey, saveLicenseExpiryFallback } from "../lib/db.js";
+import {
+  setCors,
+  verifyWebSessionToken,
+  getSessionFromReq,
+  generateLicenseKey,
+  saveLicenseExpiryFallback,
+  getWebUserByAccountLogin,
+} from "../lib/db.js";
+import { sendLicenseKeyEmail } from "../lib/email.js";
 
 // Khusus ADMIN — generate kode lisensi EA dari web, pengganti script
 // LicenseKeyGenerator.mq5 (drag & drop ke chart). Algoritma checksum
@@ -51,6 +59,32 @@ export default async function handler(req, res) {
       console.error("Gagal menyimpan fallback license_expires_at:", fallbackErr);
     }
 
+    // Kirim kode ke email customer (dicari dari Akun ID MT5 yang sudah
+    // dikaitkan saat registrasi) — kegagalan pencarian user atau kirim
+    // email TIDAK menggagalkan response ke admin; kode tetap valid dan
+    // tetap ditampilkan di panel untuk disalin manual sebagai fallback.
+    let emailResult = { sent: false, error: "Tidak ada akun web yang terkait dengan Akun ID MT5 ini" };
+    try {
+      const webUser = await getWebUserByAccountLogin(accountLogin);
+      if (webUser?.email) {
+        const expiryDateHuman = result.expiryDate.replace(
+          /^(\d{4})(\d{2})(\d{2})$/, "$3-$2-$1"
+        );
+        emailResult = await sendLicenseKeyEmail({
+          to: webUser.email,
+          accountLogin,
+          licenseKey: result.key,
+          expiryDateHuman,
+          magicNumber,
+        });
+      }
+    } catch (emailErr) {
+      emailResult = { sent: false, error: String(emailErr) };
+    }
+    if (!emailResult.sent) {
+      console.error("Gagal mengirim email kode lisensi:", emailResult.error);
+    }
+
     return res.status(200).json({
       ok: true,
       key: result.key,
@@ -59,6 +93,8 @@ export default async function handler(req, res) {
       validDays,
       expiryDate: result.expiryDate,
       expiresAt: result.expiresAt,
+      emailSent: emailResult.sent,
+      emailError: emailResult.sent ? null : emailResult.error,
     });
   } catch (err) {
     return res.status(500).json({ ok: false, error: String(err) });
