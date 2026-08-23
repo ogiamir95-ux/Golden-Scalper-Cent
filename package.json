@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",
-    "bcryptjs": "^2.4.3"
+    "bcryptjs": "^2.4.3",
+    "resend": "^4.0.1"
   }
 }
