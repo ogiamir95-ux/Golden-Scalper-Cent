@@ -1,7 +1,7 @@
-import { redis, keys, setCors, verifySessionToken, getSessionFromReq } from "../lib/redis.js";
+import { supabase, setCors, verifySessionToken, getSessionFromReq } from "../lib/db.js";
 
-// Jurnal harian (Kalender Profit/Loss) — satu entri per tanggal per akun,
-// disimpan di Redis hash `gsp:journal:{accountLogin}` (field = "YYYY-MM-DD").
+// Jurnal harian (Kalender Profit/Loss) — satu baris per tanggal per akun,
+// disimpan di tabel Supabase `journal_entries` (primary key: account_login + entry_date).
 //
 // GET  ?account=&month=YYYY-MM  -> ambil semua entri jurnal bulan tsb
 //   (dipanggil dashboard saat kalender dibuka / pindah bulan)
@@ -32,16 +32,29 @@ export default async function handler(req, res) {
     }
 
     try {
-      const K = keys(account);
-      const all = await redis.hgetall(K.journal);
+      const startDate = `${month}-01`;
+      const [y, m] = month.split("-").map(Number);
+      const nextMonth = new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10); // hari pertama bulan berikutnya
+
+      const { data, error } = await supabase
+        .from("journal_entries")
+        .select("entry_date,pnl,pair,lot,trades,win_rate,note,updated_at")
+        .eq("account_login", account)
+        .gte("entry_date", startDate)
+        .lt("entry_date", nextMonth);
+      if (error) throw error;
+
       const entries = {};
-      if (all) {
-        for (const [date, raw] of Object.entries(all)) {
-          if (!date.startsWith(month)) continue;
-          try {
-            entries[date] = typeof raw === "string" ? JSON.parse(raw) : raw;
-          } catch { /* skip entri korup */ }
-        }
+      for (const row of data || []) {
+        entries[row.entry_date] = {
+          pnl: Number(row.pnl),
+          pair: row.pair,
+          lot: Number(row.lot),
+          trades: Number(row.trades),
+          winRate: Number(row.win_rate),
+          note: row.note,
+          updatedAt: new Date(row.updated_at).getTime(),
+        };
       }
       return res.status(200).json({ ok: true, month, entries });
     } catch (err) {
@@ -65,22 +78,42 @@ export default async function handler(req, res) {
     }
 
     try {
-      const K = keys(account);
-      const existingRaw = await redis.hget(K.journal, date);
-      const existing = existingRaw ? (typeof existingRaw === "string" ? JSON.parse(existingRaw) : existingRaw) : {};
+      const { data: existing } = await supabase
+        .from("journal_entries")
+        .select("pnl")
+        .eq("account_login", account)
+        .eq("entry_date", date)
+        .maybeSingle();
 
       const merged = {
-        pnl: Number(existing.pnl ?? 0), // hanya diisi otomatis dari ea-update.js
-        pair: String(body.pair ?? existing.pair ?? ""),
-        lot: Number(body.lot ?? existing.lot ?? 0),
-        trades: Number(body.trades ?? existing.trades ?? 0),
-        winRate: Number(body.winRate ?? existing.winRate ?? 0),
-        note: String(body.note ?? existing.note ?? ""),
-        updatedAt: Date.now(),
+        account_login: account,
+        entry_date: date,
+        pnl: existing?.pnl ?? 0, // hanya diisi otomatis dari ea-update.js
+        pair: String(body.pair ?? ""),
+        lot: Number(body.lot ?? 0),
+        trades: Number(body.trades ?? 0),
+        win_rate: Number(body.winRate ?? 0),
+        note: String(body.note ?? ""),
       };
 
-      await redis.hset(K.journal, { [date]: JSON.stringify(merged) });
-      return res.status(200).json({ ok: true, date, entry: merged });
+      const { error } = await supabase
+        .from("journal_entries")
+        .upsert(merged, { onConflict: "account_login,entry_date" });
+      if (error) throw error;
+
+      return res.status(200).json({
+        ok: true,
+        date,
+        entry: {
+          pnl: Number(merged.pnl),
+          pair: merged.pair,
+          lot: merged.lot,
+          trades: merged.trades,
+          winRate: merged.win_rate,
+          note: merged.note,
+          updatedAt: Date.now(),
+        },
+      });
     } catch (err) {
       return res.status(500).json({ ok: false, error: String(err) });
     }
