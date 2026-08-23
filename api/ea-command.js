@@ -1,4 +1,4 @@
-import { redis, keys, checkEAToken, setCors, verifySessionToken, getSessionFromReq } from "../lib/redis.js";
+import { supabase, checkEAToken, setCors, verifySessionToken, getSessionFromReq } from "../lib/db.js";
 
 const ALLOWED = ["START", "STOP", "CLOSEALL", "RESET", "NONE"];
 
@@ -18,9 +18,17 @@ export default async function handler(req, res) {
     const account = String(req.query.account || "").trim();
     if (!account) return res.status(400).json({ ok: false, error: "Parameter 'account' wajib diisi" });
 
-    const K = keys(account);
-    const cmd = await redis.get(K.command);
-    if (cmd) await redis.set(K.command, "");
+    const { data, error } = await supabase
+      .from("accounts")
+      .select("pending_command")
+      .eq("account_login", account)
+      .maybeSingle();
+    if (error) return res.status(500).json({ ok: false, error: String(error) });
+
+    const cmd = data?.pending_command || "";
+    if (cmd) {
+      await supabase.from("accounts").update({ pending_command: null }).eq("account_login", account);
+    }
     return res.status(200).json({ ok: true, command: cmd || "" });
   }
 
@@ -39,8 +47,11 @@ export default async function handler(req, res) {
       return res.status(401).json({ ok: false, error: "Sesi tidak valid / sudah kedaluwarsa — silakan login ulang" });
     }
 
-    const K = keys(account);
-    await redis.set(K.command, command);
+    const { error } = await supabase
+      .from("accounts")
+      .upsert({ account_login: account, pending_command: command }, { onConflict: "account_login" });
+    if (error) return res.status(500).json({ ok: false, error: String(error) });
+
     return res.status(200).json({ ok: true, command });
   }
 
