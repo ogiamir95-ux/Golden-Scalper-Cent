@@ -170,12 +170,26 @@ Di **Project Settings → Environment Variables**, tambahkan:
 | Key | Value |
 |---|---|
 | `EA_SHARED_TOKEN` | token rahasia bebas, contoh: `gsp_9x8K2m...` (buat sendiri, jangan pakai contoh ini) |
-| `RESEND_API_KEY` | API key dari [resend.com/api-keys](https://resend.com/api-keys) — untuk kirim otomatis kode lisensi ke email customer saat admin generate kode |
-| `RESEND_FROM` | alamat pengirim, contoh: `Golden Cent Scalper <lisensi@domainanda.com>`. Domain harus sudah diverifikasi di Resend (Domains → Add Domain). Untuk testing cepat sebelum punya domain sendiri, boleh pakai `onboarding@resend.dev` — tapi Resend hanya akan mengizinkan kirim ke email yang terdaftar di akun Resend Anda sendiri sampai domain diverifikasi. |
+| `GMAIL_USER` | alamat Gmail pengirim, mis. `akunanda@gmail.com` |
+| `GMAIL_APP_PASSWORD` | App Password 16 digit dari Google Account (lihat cara buatnya di bawah) — **bukan** password login Gmail biasa |
 
-Kalau `RESEND_API_KEY` belum diisi, generate kode lisensi tetap berjalan
-normal (kode tetap tampil untuk disalin manual) — hanya pengiriman email
-otomatisnya yang dilewati.
+**Cara buat `GMAIL_APP_PASSWORD`:**
+1. Buka [myaccount.google.com/security](https://myaccount.google.com/security)
+2. Aktifkan **2-Step Verification** dulu kalau belum (App Password tidak
+   muncul tanpa ini)
+3. Cari fitur **App passwords** (ketik "app password" di kolom pencarian
+   pengaturan)
+4. Pilih app **Mail**, device **Other** → beri nama bebas (mis. "Golden
+   Scalper") → **Generate**
+5. Google menampilkan kode 16 digit (mis. `abcd efgh ijkl mnop`) — salin
+   (spasi boleh dihapus atau dibiarkan) dan isi sebagai `GMAIL_APP_PASSWORD`
+
+Kalau `GMAIL_USER`/`GMAIL_APP_PASSWORD` belum diisi, generate kode lisensi
+tetap berjalan normal (kode tetap tampil untuk disalin manual) — hanya
+pengiriman email otomatisnya yang dilewati.
+
+Catatan: akun Gmail biasa punya batas pengiriman ±500 email/hari — cukup
+untuk kebanyakan kebutuhan penjualan lisensi EA.
 
 ### 3. Deploy
 - **Via Vercel CLI:**
