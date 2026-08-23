@@ -1,24 +1,21 @@
 -- ============================================================
 -- Golden Scalper Cent — Skema Supabase PostgreSQL
--- Pengganti struktur Redis (lihat lib/redis.js versi lama).
 -- Jalankan file ini di Supabase SQL Editor (Project > SQL Editor > New query).
 -- ============================================================
 
 -- Tabel utama: satu baris per akun MT5 (accountLogin).
--- Menggantikan: gsp:state, gsp:heartbeat, gsp:command, gsp:config, gsp:eatoken
 create table if not exists accounts (
   account_login     text primary key,
-  state             jsonb,                -- snapshot terakhir dari EA (equity, balance, dll)
-  config            jsonb,                -- konfigurasi yang diset dari web panel
-  pending_command   text,                 -- perintah tertunda: START/STOP/CLOSEALL/RESET/NONE
-  license_key_hash  text,                 -- hash lisensi yang dikirim EA (TOFU binding)
-  last_seen_at      timestamptz,          -- heartbeat terakhir (dipakai utk cek online/offline)
+  state             jsonb,
+  config            jsonb,
+  pending_command   text,
+  license_key_hash  text,
+  last_seen_at      timestamptz,
   updated_at        timestamptz not null default now(),
   created_at        timestamptz not null default now()
 );
 
--- Log aktivitas EA (menggantikan Redis list gsp:log:{account}, LPUSH + LTRIM 30).
--- Disimpan sebagai tabel biasa, diambil dengan ORDER BY created_at DESC LIMIT N.
+-- Log aktivitas EA
 create table if not exists ea_logs (
   id            bigint generated always as identity primary key,
   account_login text not null references accounts(account_login) on delete cascade,
@@ -30,7 +27,7 @@ create table if not exists ea_logs (
 create index if not exists idx_ea_logs_account_created
   on ea_logs (account_login, created_at desc);
 
--- Jurnal harian P/L (menggantikan Redis hash gsp:journal:{account}, field = YYYY-MM-DD).
+-- Jurnal harian P/L
 create table if not exists journal_entries (
   account_login text not null references accounts(account_login) on delete cascade,
   entry_date    date not null,
@@ -47,7 +44,7 @@ create table if not exists journal_entries (
 create index if not exists idx_journal_account_date
   on journal_entries (account_login, entry_date);
 
--- Fungsi util: auto-update kolom updated_at setiap kali baris accounts diubah.
+-- Fungsi util: auto-update kolom updated_at setiap kali baris diubah.
 create or replace function set_updated_at()
 returns trigger as $$
 begin
@@ -62,14 +59,43 @@ create trigger trg_accounts_updated_at
   for each row execute function set_updated_at();
 
 -- ============================================================
+-- Akun login WEB (Gmail + password) — TERPISAH dari data EA/MT5 di
+-- tabel `accounts`. Ini hanya lapisan identitas untuk masuk ke panel;
+-- validasi lisensi EA (real-time) tetap dilakukan seperti sebelumnya
+-- terhadap `accounts.state`, jadi tabel ini TIDAK bisa dipakai untuk
+-- membuat/menghasilkan lisensi baru — cuma mengaitkan satu email ke
+-- satu account_login yang datanya sudah ada di tabel `accounts`.
+-- ============================================================
+create table if not exists web_users (
+  id                bigint generated always as identity primary key,
+  email             text not null unique,
+  password_hash     text not null,
+  account_login     text references accounts(account_login) on delete set null,
+  role              text not null default 'user',
+  status            text not null default 'pending',
+  created_at        timestamptz not null default now(),
+  updated_at        timestamptz not null default now()
+);
+
+create index if not exists idx_web_users_email on web_users (lower(email));
+
+drop trigger if exists trg_web_users_updated_at on web_users;
+create trigger trg_web_users_updated_at
+  before update on web_users
+  for each row execute function set_updated_at();
+
+-- ============================================================
 -- Row Level Security
--- Semua akses dari API dilakukan lewat SERVICE ROLE KEY (server-side di
--- Vercel), yang otomatis bypass RLS. RLS diaktifkan di sini sebagai lapisan
--- pertahanan tambahan supaya anon/public key (jika suatu saat bocor atau
--- dipakai keliru) TIDAK bisa membaca/menulis tabel ini langsung dari
--- browser. Tidak ada policy yang dibuat untuk anon/authenticated, artinya
--- default-nya deny-all bagi siapa pun selain service_role.
 -- ============================================================
 alter table accounts enable row level security;
 alter table ea_logs enable row level security;
 alter table journal_entries enable row level security;
+alter table web_users enable row level security;
+
+-- ============================================================
+-- Membuat admin PERTAMA — jalankan manual satu kali di SQL Editor
+-- setelah mengganti email & password di bawah (password di-hash pakai
+-- bcrypt secara terpisah, lihat README). JANGAN commit kredensial asli ke repo.
+-- ============================================================
+-- insert into web_users (email, password_hash, role, status)
+-- values ('admin@email-anda.com', '<BCRYPT_HASH_DI_SINI>', 'admin', 'approved');
