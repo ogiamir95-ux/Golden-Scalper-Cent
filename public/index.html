@@ -955,7 +955,17 @@ input[type=color]{width:42px;height:32px;padding:2px;border-radius:7px;border:1p
         <div class="topbar-title"><h1>Admin Panel</h1><p>Kelola akun web — approve pendaftaran &amp; kaitkan ke Akun ID MT5</p></div>
         <button class="btn btn-ghost btn-sm" id="btnAdminRefresh">Muat Ulang</button>
       </div>
+
+      <!-- ===== RINGKASAN KARTU PER AKUN (online/offline, equity, posisi, sisa masa aktif) ===== -->
       <div class="card panel-card">
+        <div class="section-title-row"><h3>Ringkasan Akun Customer</h3></div>
+        <p class="sub">Sisa masa aktif diambil real-time dari EA saat online; jika EA belum pernah/belum sempat sync ulang, dipakai tanggal dari kode lisensi terakhir yang di-generate di panel ini.</p>
+        <div id="adminAccountCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-top:14px;">
+          <div style="padding:14px;color:var(--text-3);font-size:13px;">Memuat...</div>
+        </div>
+      </div>
+
+      <div class="card panel-card" style="margin-top:16px;">
         <div class="section-title-row"><h3>Akun Web Terdaftar</h3></div>
         <p class="sub">Lisensi tetap divalidasi real-time dari EA — panel ini hanya mengelola identitas login (email) dan mengaitkannya ke Akun ID MT5 yang datanya sudah ada di server.</p>
         <div id="adminUsersTable" style="overflow-x:auto;">
@@ -1314,7 +1324,7 @@ function goPage(id){
   window.scrollTo({top:0,behavior:'smooth'});
   if(id === 'jurnal'){ loadJurnalMonth(); startJurnalAutoRefresh(); }
   else { stopJurnalAutoRefresh(); }
-  if(id === 'admin'){ loadAdminUsers(); }
+  if(id === 'admin'){ loadAdminUsers(); loadAdminAccountCards(); }
 }
 document.querySelectorAll('.nav-item').forEach(n=>n.addEventListener('click', ()=>goPage(n.dataset.page)));
 
@@ -2213,6 +2223,97 @@ async function loadAdminUsers(){
   }
 }
 
+/* ============================================================
+   RINGKASAN KARTU AKUN — status online/offline EA, equity,
+   posisi terbuka, dan sisa masa aktif lisensi per customer.
+   ============================================================ */
+function formatMoney(n){
+  if(n === null || n === undefined) return '—';
+  return Number(n).toLocaleString('id-ID', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+function accountCardHtml(item){
+  const online = item.online;
+  const hasData = item.hasData;
+  const badge = online
+    ? '<span style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:rgba(60,200,120,.15);color:#4ade80;">Aktif</span>'
+    : '<span style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:rgba(255,255,255,.08);color:var(--text-3);">Offline</span>';
+
+  const statusLine = !item.accountLogin
+    ? 'Belum dikaitkan ke Akun ID MT5'
+    : !hasData
+      ? 'EA belum pernah terhubung ke server'
+      : (online ? 'EA online / terhubung' : 'EA offline / belum konek');
+  const statusDotColor = online ? '#4ade80' : 'var(--text-3)';
+
+  let expiryHtml = '<span style="color:var(--text-3);">—</span>';
+  if(item.daysLeft !== null){
+    if(item.daysLeft < 0){
+      expiryHtml = `<b style="color:#ff9090;">Expired (${item.expiresAt})</b>`;
+    } else {
+      const warn = item.daysLeft <= 7;
+      expiryHtml = `<b style="color:${warn ? 'var(--gold)' : '#4ade80'};">${item.daysLeft} hari</b>`;
+    }
+  }
+
+  let licBadge = '';
+  if(item.licenseStatus === 'VALID') licBadge = '<span style="color:#4ade80;">VALID</span>';
+  else if(item.licenseStatus) licBadge = `<span style="color:#ff9090;">${item.licenseStatus}</span>`;
+
+  return `
+    <div style="padding:16px;border:1px solid var(--border-soft);border-radius:12px;background:var(--panel-2, rgba(255,255,255,.02));">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+        <div style="min-width:0;">
+          <div style="font-size:11.5px;color:var(--text-3);word-break:break-all;">${item.email}${item.accountLogin ? ' · ' + item.accountLogin : ''}</div>
+          <div style="font-weight:700;font-size:14px;margin-top:2px;">${licBadge || (item.accountLogin ? 'Belum ada data' : 'Belum terkait')}</div>
+        </div>
+        ${badge}
+      </div>
+
+      <div style="display:flex;align-items:center;gap:6px;margin-top:10px;font-size:12px;color:var(--text-3);">
+        <span style="width:7px;height:7px;border-radius:50%;background:${statusDotColor};display:inline-block;"></span>
+        ${statusLine}
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;">
+        <div style="padding:8px 10px;border-radius:8px;background:rgba(255,255,255,.03);">
+          <div style="font-size:10.5px;color:var(--text-3);">Equity</div>
+          <div style="font-size:13.5px;font-weight:700;margin-top:2px;">${formatMoney(item.equity)}</div>
+        </div>
+        <div style="padding:8px 10px;border-radius:8px;background:rgba(255,255,255,.03);">
+          <div style="font-size:10.5px;color:var(--text-3);">Posisi Terbuka</div>
+          <div style="font-size:13.5px;font-weight:700;margin-top:2px;">${item.openPositions ?? '—'}</div>
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:10px;border-top:1px solid var(--border-soft);font-size:12px;">
+        <span style="color:var(--text-3);">Sisa masa aktif</span>
+        ${expiryHtml}
+      </div>
+    </div>
+  `;
+}
+
+async function loadAdminAccountCards(){
+  const wrap = document.getElementById('adminAccountCards');
+  wrap.innerHTML = '<div style="padding:14px;color:var(--text-3);font-size:13px;">Memuat...</div>';
+  try{
+    const r = await fetch(API_BASE + '/api/admin-accounts-summary', { headers: adminHeaders() });
+    const data = await r.json();
+    if(!data.ok){
+      wrap.innerHTML = `<div style="padding:14px;color:#ff9090;font-size:13px;">${data.error || 'Gagal memuat ringkasan akun'}</div>`;
+      return;
+    }
+    if(!data.items.length){
+      wrap.innerHTML = '<div style="padding:14px;color:var(--text-3);font-size:13px;">Belum ada akun terdaftar</div>';
+      return;
+    }
+    wrap.innerHTML = data.items.map(accountCardHtml).join('');
+  } catch(err){
+    wrap.innerHTML = '<div style="padding:14px;color:#ff9090;font-size:13px;">Gagal menghubungi server</div>';
+  }
+}
+
 async function adminUpdateUser(id, patch){
   try{
     const r = await fetch(API_BASE + '/api/admin-users', {
@@ -2224,6 +2325,7 @@ async function adminUpdateUser(id, patch){
     if(data.ok){
       showToast('Perubahan disimpan');
       loadAdminUsers();
+      loadAdminAccountCards();
     } else {
       showToast(data.error || 'Gagal menyimpan perubahan');
     }
@@ -2272,6 +2374,7 @@ document.getElementById('btnGenerateLicense').addEventListener('click', async ()
       document.getElementById('genResultMagic2').textContent = data.magicNumber;
       resultBox.classList.remove('hidden');
       resultBox.scrollIntoView({behavior:'smooth', block:'center'});
+      loadAdminAccountCards();
     } else {
       errorBox.textContent = data.error || 'Gagal membuat kode lisensi';
       errorBox.classList.remove('hidden');
@@ -2295,7 +2398,7 @@ document.getElementById('btnCopyGenResult').addEventListener('click', async ()=>
   }
 });
 
-document.getElementById('btnAdminRefresh').addEventListener('click', loadAdminUsers);
+document.getElementById('btnAdminRefresh').addEventListener('click', ()=>{ loadAdminUsers(); loadAdminAccountCards(); });
 
 function forceLogout(message){
   currentAccount = null;
