@@ -575,6 +575,23 @@ input[type=color]{width:42px;height:32px;padding:2px;border-radius:7px;border:1p
   .topbar-actions{width:100%;}
   .topbar-actions .btn{flex:1;justify-content:center;}
 }
+
+/* ============ RESPONSIVE: ADMIN PANEL & FORM UMUM ============ */
+@media(max-width:640px){
+  .panel-card{padding:16px 14px;}
+  .data-table{font-size:11.5px !important;}
+  .data-table th,.data-table td{padding:7px 5px !important;}
+  .data-table th:first-child,.data-table td:first-child{white-space:nowrap;}
+  #adminUsersTable .input{min-width:0;width:100%;font-size:12px;padding:7px 8px;}
+  /* form generate lisensi: satu kolom penuh di layar sempit, tombol full-width */
+  #page-admin div[style*="display:flex"][style*="flex-wrap:wrap"]{gap:10px;}
+  #page-admin .login-field{flex:1 1 100% !important;min-width:0 !important;width:100% !important;}
+  #btnGenerateLicense{width:100%;justify-content:center;}
+}
+@media(max-width:400px){
+  .topbar-title h1{font-size:22px;}
+  .panel-card{padding:14px 12px;}
+}
 </style>
 </head>
 <body>
@@ -636,7 +653,7 @@ input[type=color]{width:42px;height:32px;padding:2px;border-radius:7px;border:1p
           </div>
         </div>
         <div class="login-field">
-          <label for="loginUser">Akun ID (Nomor Akun MT5) — kosongkan jika login sebagai admin</label>
+          <label for="loginUser">Akun ID (Nomor Akun MT5)</label>
           <div class="login-input-row">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
             <input class="input" id="loginUser" placeholder="mis. 12345678 (kosongkan untuk admin)" autocomplete="off" inputmode="numeric">
@@ -681,7 +698,7 @@ input[type=color]{width:42px;height:32px;padding:2px;border-radius:7px;border:1p
           </div>
         </div>
         <div class="login-field">
-          <label for="regAccount">Akun ID (Nomor Akun MT5) — opsional</label>
+          <label for="regAccount">Akun ID (Nomor Akun MT5)</label>
           <div class="login-input-row">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
             <input class="input" id="regAccount" placeholder="mis. 12345678" autocomplete="off" inputmode="numeric">
@@ -734,7 +751,7 @@ input[type=color]{width:42px;height:32px;padding:2px;border-radius:7px;border:1p
       </div>
       <div class="nav-item" data-page="ringkasan-akun" id="navRingkasanAkun">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="7" height="16" rx="1.5"/><rect x="14" y="4" width="7" height="10" rx="1.5"/></svg>
-        Ringkasan Akun Customer
+        Akun Cline 
       </div>
       <div class="nav-item" data-page="downloadea">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16"/></svg>
@@ -904,7 +921,7 @@ input[type=color]{width:42px;height:32px;padding:2px;border-radius:7px;border:1p
           <h3>Log Aktivitas</h3>
           <span class="eyebrow log-live"><span class="dot-sm"></span>Live</span>
         </div>
-        <p class="sub">Riwayat aksi Expert Advisor Terbaru (disimulasikan)</p>
+        <p class="sub">Riwayat aksi Expert Advisor Terbaru</p>
         <div class="timeline" id="activityLog"></div>
       </div>
     </div>
@@ -919,7 +936,7 @@ input[type=color]{width:42px;height:32px;padding:2px;border-radius:7px;border:1p
       </div>
       <div class="card panel-card">
         <div class="section-title-row"><h3>Kode Lisensi</h3></div>
-        <p class="sub">Format: BLOK1-BLOK2-BLOK3-YYYYMMDD-CHK &nbsp;·&nbsp; hubungi Telegram @daillytrader untuk memperoleh kode</p>
+        <p class="sub">Format: BLOK1-BLOK2-BLOK3-YYYYMMDD-CHK &nbsp;·&nbsp; hubungi Telegram @DAILYTRADER24HOUS untuk memperoleh kode</p>
         <div class="field-grid">
           <div class="field" style="grid-column:1/-1;">
             <label for="licKeyInput">Masukkan Kode Lisensi</label>
@@ -1050,7 +1067,7 @@ input[type=color]{width:42px;height:32px;padding:2px;border-radius:7px;border:1p
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
             </div>
             <div>
-              <div class="ea-file-name">Golden_Scalper_Cent.ex5</div>
+              <div class="ea-file-name">Golden Scalper Cent.ex5</div>
               <div class="ea-file-meta">Expert Advisor &nbsp;·&nbsp; MetaTrader 5</div>
             </div>
           </div>
