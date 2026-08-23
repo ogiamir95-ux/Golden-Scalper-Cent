@@ -2,6 +2,7 @@
   "name": "golden-scalper-pro-panel",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "vercel dev",
     "build": "echo 'static site, no build needed'"
