@@ -1,4 +1,4 @@
-import { redis, keys, setCors, verifySessionToken, getSessionFromReq } from "../lib/redis.js";
+import { getAccount, getRecentLogs, isOnline, setCors, verifySessionToken, getSessionFromReq } from "../lib/db.js";
 
 // Dipanggil oleh browser (polling tiap beberapa detik, setelah login) untuk
 // menampilkan data real-time dari EA di dashboard.
@@ -25,20 +25,14 @@ export default async function handler(req, res) {
       return res.status(401).json({ ok: false, error: "Sesi tidak valid / sudah kedaluwarsa — silakan login ulang" });
     }
 
-    const K = keys(account);
-    const [stateRaw, heartbeat, logsRaw] = await Promise.all([
-      redis.get(K.state),
-      redis.get(K.heartbeat),
-      redis.lrange(K.log, 0, 14),
+    const [accountRow, logs] = await Promise.all([
+      getAccount(account),
+      getRecentLogs(account, 15),
     ]);
 
-    const state = stateRaw ? (typeof stateRaw === "string" ? JSON.parse(stateRaw) : stateRaw) : null;
-    const lastSeen = heartbeat ? Number(heartbeat) : 0;
-    const online = lastSeen > 0 && (Date.now() - lastSeen) < 20000; // dianggap online jika update <20 detik terakhir
-
-    const logs = (logsRaw || []).map((raw) => {
-      try { return typeof raw === "string" ? JSON.parse(raw) : raw; } catch { return null; }
-    }).filter(Boolean);
+    const state = accountRow?.state || null;
+    const lastSeen = accountRow?.last_seen_at ? new Date(accountRow.last_seen_at).getTime() : 0;
+    const online = isOnline(accountRow?.last_seen_at);
 
     return res.status(200).json({ ok: true, online, lastSeen, state, logs });
   } catch (err) {
