@@ -1,15 +1,23 @@
-import { redis, keys, ACCOUNTS_SET, checkEAToken, setCors, todayDateKeyWIB } from "../lib/redis.js";
+import {
+  supabase,
+  getAccount,
+  upsertAccountState,
+  pushLogEntries,
+  checkEAToken,
+  setCors,
+  todayDateKeyWIB,
+} from "../lib/db.js";
 
 // Dipanggil oleh EA (WebRequest POST) setiap beberapa detik untuk mengirim
 // snapshot data terbaru: equity, balance, floating, layers, lot, status, dll.
 //
 // MULTI-TENANT: setiap EA WAJIB mengirim `accountLogin` (nomor akun MT5) di
 // body — ini sudah dilakukan otomatis oleh EA (lihat BuildStateJson() di
-// .mq5, tidak perlu diubah). Nomor akun ini dipakai sebagai partisi data di
-// Redis (lihat keys() di lib/redis.js) supaya data antar customer terpisah.
+// .mq5, tidak perlu diubah). Nomor akun ini dipakai sebagai primary key di
+// tabel `accounts` (Supabase) supaya data antar customer terpisah.
 //
 // TOFU BINDING: pertama kali sebuah accountLogin terlihat, hash lisensinya
-// (licenseKeyHash) "dikunci" ke akun tersebut. Jika ada request berikutnya
+// (license_key_hash) "dikunci" ke akun tersebut. Jika ada request berikutnya
 // mengaku sebagai accountLogin yang sama tapi hash lisensinya berbeda,
 // request ditolak — ini mencegah satu nomor akun MT5 dipakai untuk
 // menimpa data milik customer lain (baik sengaja maupun karena nomor akun
@@ -31,20 +39,18 @@ export default async function handler(req, res) {
       return res.status(400).json({ ok: false, error: "accountLogin wajib dikirim EA" });
     }
 
-    const K = keys(accountLogin);
     const licenseKeyHash = String(body.licenseKeyHash ?? "");
+    const existing = await getAccount(accountLogin);
+    const boundHash = existing?.license_key_hash;
 
-    const boundHash = await redis.get(K.eaToken);
-    if (!boundHash) {
-      if (licenseKeyHash) await redis.set(K.eaToken, licenseKeyHash);
-    } else if (licenseKeyHash && String(boundHash) !== licenseKeyHash) {
+    if (boundHash && licenseKeyHash && String(boundHash) !== licenseKeyHash) {
       return res.status(409).json({
         ok: false,
         error:
           "Akun MT5 ini sudah terikat ke lisensi lain di server (TOFU binding). " +
-          "Jika ini renewal/ganti lisensi yang sah, hapus key 'gsp:eatoken:" +
+          "Jika ini renewal/ganti lisensi yang sah, hapus/reset baris akun '" +
           accountLogin +
-          "' di Upstash lalu coba lagi.",
+          "' di tabel accounts (Supabase) lalu coba lagi.",
       });
     }
 
@@ -77,9 +83,11 @@ export default async function handler(req, res) {
       updatedAt: Date.now(),
     };
 
-    await redis.set(K.state, JSON.stringify(snapshot));
-    await redis.set(K.heartbeat, Date.now());
-    await redis.sadd(ACCOUNTS_SET, accountLogin);
+    await upsertAccountState(accountLogin, {
+      state: snapshot,
+      license_key_hash: licenseKeyHash || boundHash || null,
+      last_seen_at: new Date().toISOString(),
+    });
 
     // EA mengirim SEMUA event aktivitas yang terjadi sejak sync terakhir
     // lewat array `logQueue` (baru) — supaya beberapa event yang terjadi
@@ -92,49 +100,53 @@ export default async function handler(req, res) {
       for (const item of body.logQueue) {
         const text = String(item?.text ?? "").trim();
         if (!text) continue;
-        logEntries.push({ text, type: String(item?.type || "info"), time: Date.now() });
+        logEntries.push({ text, type: String(item?.type || "info") });
       }
     } else if (body.logText) {
-      logEntries.push({ text: String(body.logText), type: String(body.logType || "info"), time: Date.now() });
+      logEntries.push({ text: String(body.logText), type: String(body.logType || "info") });
     }
 
     if (logEntries.length > 0) {
-      // lpush menaruh entri terbaru di depan list; supaya urutan tampil di
-      // dashboard tetap kronologis (terbaru di atas), push dari yang
-      // PALING BARU dulu (iterasi terbalik) — hasil akhirnya: index 0 di
-      // Redis = entri terakhir dalam batch ini, sesuai urutan waktu asli.
-      for (let i = logEntries.length - 1; i >= 0; i--) {
-        await redis.lpush(K.log, JSON.stringify(logEntries[i]));
-      }
-      await redis.ltrim(K.log, 0, 29); // simpan 30 entri terakhir
+      await pushLogEntries(accountLogin, logEntries);
     }
 
-    // Auto-catat P/L hari ini ke Kalender Jurnal (gsp:journal:{account}).
-    // Hanya field `pnl` & `pair` yang ditimpa otomatis di sini — field lain
-    // (trades, winRate, lot, note) tetap milik operator, diisi manual lewat
+    // Auto-catat P/L hari ini ke Kalender Jurnal (tabel journal_entries).
+    // Hanya kolom `pnl` & `pair` yang ditimpa otomatis di sini — kolom lain
+    // (trades, win_rate, lot, note) tetap milik operator, diisi manual lewat
     // /api/journal.js supaya tidak tertimpa tiap kali EA sync (tiap ~3 detik).
     try {
       const todayKey = todayDateKeyWIB();
-      const existingRaw = await redis.hget(K.journal, todayKey);
-      const existing = existingRaw ? (typeof existingRaw === "string" ? JSON.parse(existingRaw) : existingRaw) : {};
-      const journalEntry = {
-        pnl: snapshot.achievedToday,
-        pair: snapshot.symbol,
-        lot: Number(existing.lot ?? 0),
-        trades: Number(existing.trades ?? 0),
-        winRate: Number(existing.winRate ?? 0),
-        note: String(existing.note ?? ""),
-        updatedAt: Date.now(),
-      };
-      await redis.hset(K.journal, { [todayKey]: JSON.stringify(journalEntry) });
+      const { data: existingEntry } = await supabase
+        .from("journal_entries")
+        .select("lot,trades,win_rate,note")
+        .eq("account_login", accountLogin)
+        .eq("entry_date", todayKey)
+        .maybeSingle();
+
+      await supabase.from("journal_entries").upsert(
+        {
+          account_login: accountLogin,
+          entry_date: todayKey,
+          pnl: snapshot.achievedToday,
+          pair: snapshot.symbol,
+          lot: existingEntry?.lot ?? 0,
+          trades: existingEntry?.trades ?? 0,
+          win_rate: existingEntry?.win_rate ?? 0,
+          note: existingEntry?.note ?? "",
+        },
+        { onConflict: "account_login,entry_date" }
+      );
     } catch { /* jurnal bersifat pelengkap — jangan gagalkan sync utama jika ini error */ }
 
     // Balas dengan perintah tertunda (jika ada), lalu langsung hapus (ack)
     // supaya EA tidak menerima & mengeksekusi perintah yang sama berulang-ulang
     // di setiap sync berikutnya (mis. CLOSEALL yang terus menutup posisi baru).
-    const pendingCommand = await redis.get(K.command);
+    const pendingCommand = existing?.pending_command || null;
     if (pendingCommand) {
-      await redis.set(K.command, "");
+      await supabase
+        .from("accounts")
+        .update({ pending_command: null })
+        .eq("account_login", accountLogin);
     }
 
     return res.status(200).json({ ok: true, command: pendingCommand || null });
