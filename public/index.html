@@ -732,6 +732,10 @@ input[type=color]{width:42px;height:32px;padding:2px;border-radius:7px;border:1p
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2l7 4v6c0 5-3.5 8-7 10-3.5-2-7-5-7-10V6l7-4z"/></svg>
         Lisensi
       </div>
+      <div class="nav-item" data-page="ringkasan-akun" id="navRingkasanAkun">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="7" height="16" rx="1.5"/><rect x="14" y="4" width="7" height="10" rx="1.5"/></svg>
+        Ringkasan Akun Customer
+      </div>
       <div class="nav-item" data-page="downloadea">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16"/></svg>
         Download EA
@@ -949,11 +953,11 @@ input[type=color]{width:42px;height:32px;padding:2px;border-radius:7px;border:1p
       </div>
     </div>
 
-    <!-- ============ ADMIN PANEL (khusus role admin) ============ -->
-    <div class="page" id="page-admin">
+    <!-- ============ RINGKASAN AKUN CUSTOMER (halaman sendiri, khusus admin) ============ -->
+    <div class="page" id="page-ringkasan-akun">
       <div class="topbar">
-        <div class="topbar-title"><h1>Admin Panel</h1><p>Kelola akun web — approve pendaftaran &amp; kaitkan ke Akun ID MT5</p></div>
-        <button class="btn btn-ghost btn-sm" id="btnAdminRefresh">Muat Ulang</button>
+        <div class="topbar-title"><h1>Ringkasan Akun Customer</h1><p>Status real-time seluruh akun customer — online/offline, equity, posisi, dan sisa masa aktif</p></div>
+        <button class="btn btn-ghost btn-sm" id="btnRingkasanAkunRefresh">Muat Ulang</button>
       </div>
 
       <!-- ===== RINGKASAN KARTU PER AKUN (online/offline, equity, posisi, sisa masa aktif) ===== -->
@@ -964,8 +968,16 @@ input[type=color]{width:42px;height:32px;padding:2px;border-radius:7px;border:1p
           <div style="padding:14px;color:var(--text-3);font-size:13px;">Memuat...</div>
         </div>
       </div>
+    </div>
 
-      <div class="card panel-card" style="margin-top:16px;">
+    <!-- ============ ADMIN PANEL (khusus role admin) ============ -->
+    <div class="page" id="page-admin">
+      <div class="topbar">
+        <div class="topbar-title"><h1>Admin Panel</h1><p>Kelola akun web — approve pendaftaran &amp; kaitkan ke Akun ID MT5</p></div>
+        <button class="btn btn-ghost btn-sm" id="btnAdminRefresh">Muat Ulang</button>
+      </div>
+
+      <div class="card panel-card">
         <div class="section-title-row"><h3>Akun Web Terdaftar</h3></div>
         <p class="sub">Lisensi tetap divalidasi real-time dari EA — panel ini hanya mengelola identitas login (email) dan mengaitkannya ke Akun ID MT5 yang datanya sudah ada di server.</p>
         <div id="adminUsersTable" style="overflow-x:auto;">
@@ -1018,6 +1030,7 @@ input[type=color]{width:42px;height:32px;padding:2px;border-radius:7px;border:1p
           <div style="font-size:11.5px;color:var(--text-3);margin-top:6px;">
             Instruksikan customer untuk paste kode ini ke input <b>InpLicenseKey</b> pada EA yang dipasang di akun MT5 #<span id="genResultAccount2"></span>. Magic Number pada EA (InpMagicNumberDefault) harus sama dengan <b id="genResultMagic2"></b>.
           </div>
+          <div id="genResultEmailStatus" style="font-size:11.5px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border-soft);"></div>
         </div>
         <div id="genErrorBox" class="hidden" style="margin-top:12px;color:#ff9090;font-size:12.5px;"></div>
       </div>
@@ -1312,6 +1325,9 @@ function goPage(id){
   // Cegah non-admin membuka halaman admin secara paksa (mis. lewat konsol
   // browser) — API backend sudah menolak (403), ini tambahan agar tampilan
   // Admin Panel juga tidak sempat terlihat sama sekali oleh user biasa.
+  // Halaman "Ringkasan Akun Customer" terbuka untuk semua orang (lihat
+  // API publik /api/public-accounts-summary — identitas sudah disamarkan).
+  // Admin Panel tetap khusus admin.
   if(id === 'admin' && currentRole !== 'admin'){
     showToast('Akses ditolak — khusus admin');
     id = 'dashboard';
@@ -1324,7 +1340,8 @@ function goPage(id){
   window.scrollTo({top:0,behavior:'smooth'});
   if(id === 'jurnal'){ loadJurnalMonth(); startJurnalAutoRefresh(); }
   else { stopJurnalAutoRefresh(); }
-  if(id === 'admin'){ loadAdminUsers(); loadAdminAccountCards(); }
+  if(id === 'admin'){ loadAdminUsers(); }
+  if(id === 'ringkasan-akun'){ loadPublicAccountCards(); }
 }
 document.querySelectorAll('.nav-item').forEach(n=>n.addEventListener('click', ()=>goPage(n.dataset.page)));
 
@@ -2142,6 +2159,8 @@ document.getElementById('forgotLink').addEventListener('click', ()=>{
    tetap hanya sah jika dikonfirmasi real-time oleh EA yang online.
    ============================================================ */
 function applyRoleUI(){
+  // "Ringkasan Akun Customer" sengaja TIDAK di-toggle di sini — menu itu
+  // publik dan selalu terlihat untuk siapa pun (lihat markup sidebar).
   const navAdmin = document.getElementById('navAdmin');
   if(currentRole === 'admin'){
     navAdmin.classList.remove('hidden');
@@ -2314,6 +2333,87 @@ async function loadAdminAccountCards(){
   }
 }
 
+const ICON_CARD = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:13px;height:13px;flex-shrink:0;"><rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="M2 10h20"/></svg>';
+const ICON_ACTIVITY = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:13px;height:13px;flex-shrink:0;"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>';
+
+// Kartu PUBLIK — identitas sudah disamarkan oleh server (emailMasked /
+// accountMasked). Sengaja TIDAK menampilkan status lisensi sama sekali.
+function publicAccountCardHtml(item){
+  const online = item.online;
+  const badge = online
+    ? '<span style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:rgba(60,200,120,.15);color:#4ade80;">Aktif</span>'
+    : '<span style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:rgba(255,255,255,.08);color:var(--text-3);">Offline</span>';
+
+  const statusLine = !item.hasAccount
+    ? 'Belum dikaitkan ke Akun ID MT5'
+    : !item.hasData
+      ? 'EA belum pernah terhubung ke server'
+      : (online ? 'EA online / terhubung' : 'EA offline / belum konek');
+  const statusDotColor = online ? '#4ade80' : 'var(--text-3)';
+
+  let expiryHtml = '<span style="color:var(--text-3);">—</span>';
+  if(item.daysLeft !== null){
+    if(item.daysLeft < 0){
+      expiryHtml = '<b style="color:#ff9090;">Expired</b>';
+    } else {
+      const warn = item.daysLeft <= 7;
+      expiryHtml = `<b style="color:${warn ? 'var(--gold)' : '#4ade80'};">${item.daysLeft} hari</b>`;
+    }
+  }
+
+  return `
+    <div style="padding:16px;border:1px solid var(--border-soft);border-radius:12px;background:var(--panel-2, rgba(255,255,255,.02));">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+        <div style="min-width:0;">
+          <div style="font-size:11.5px;color:var(--text-3);word-break:break-all;">${item.emailMasked}${item.accountMasked ? ' · ' + item.accountMasked : ''}</div>
+        </div>
+        ${badge}
+      </div>
+
+      <div style="display:flex;align-items:center;gap:6px;margin-top:10px;font-size:12px;color:var(--text-3);">
+        <span style="width:7px;height:7px;border-radius:50%;background:${statusDotColor};display:inline-block;"></span>
+        ${statusLine}
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;">
+        <div style="padding:8px 10px;border-radius:8px;background:rgba(255,255,255,.03);">
+          <div style="display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--text-3);">${ICON_CARD}Equity</div>
+          <div style="font-size:13.5px;font-weight:700;margin-top:2px;">${formatMoney(item.equity)}</div>
+        </div>
+        <div style="padding:8px 10px;border-radius:8px;background:rgba(255,255,255,.03);">
+          <div style="display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--text-3);">${ICON_ACTIVITY}Posisi Terbuka</div>
+          <div style="font-size:13.5px;font-weight:700;margin-top:2px;">${item.openPositions ?? '—'}</div>
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:10px;border-top:1px solid var(--border-soft);font-size:12px;">
+        <span style="color:var(--text-3);">Sisa masa aktif</span>
+        ${expiryHtml}
+      </div>
+    </div>
+  `;
+}
+
+async function loadPublicAccountCards(){
+  const wrap = document.getElementById('adminAccountCards');
+  wrap.innerHTML = '<div style="padding:14px;color:var(--text-3);font-size:13px;">Memuat...</div>';
+  try{
+    const r = await fetch(API_BASE + '/api/public-accounts-summary');
+    const data = await r.json();
+    if(!data.ok){
+      wrap.innerHTML = `<div style="padding:14px;color:#ff9090;font-size:13px;">${data.error || 'Gagal memuat ringkasan akun'}</div>`;
+      return;
+    }
+    if(!data.items.length){
+      wrap.innerHTML = '<div style="padding:14px;color:var(--text-3);font-size:13px;">Belum ada akun terdaftar</div>';
+      return;
+    }
+    wrap.innerHTML = data.items.map(publicAccountCardHtml).join('');
+  } catch(err){
+    wrap.innerHTML = '<div style="padding:14px;color:#ff9090;font-size:13px;">Gagal menghubungi server</div>';
+  }
+}
+
 async function adminUpdateUser(id, patch){
   try{
     const r = await fetch(API_BASE + '/api/admin-users', {
@@ -2375,6 +2475,14 @@ document.getElementById('btnGenerateLicense').addEventListener('click', async ()
       resultBox.classList.remove('hidden');
       resultBox.scrollIntoView({behavior:'smooth', block:'center'});
       loadAdminAccountCards();
+      const emailStatusEl = document.getElementById('genResultEmailStatus');
+      if(data.emailSent){
+        emailStatusEl.innerHTML = '✅ <span style="color:#4ade80;">Terkirim otomatis ke email customer</span>';
+        showToast('Kode lisensi dibuat & terkirim ke email customer');
+      } else {
+        emailStatusEl.innerHTML = `⚠️ <span style="color:#ff9090;">Gagal kirim email otomatis (${data.emailError || 'unknown'}) — salin &amp; kirim manual.</span>`;
+        showToast('Kode dibuat, tapi gagal kirim email — salin manual');
+      }
     } else {
       errorBox.textContent = data.error || 'Gagal membuat kode lisensi';
       errorBox.classList.remove('hidden');
@@ -2398,7 +2506,8 @@ document.getElementById('btnCopyGenResult').addEventListener('click', async ()=>
   }
 });
 
-document.getElementById('btnAdminRefresh').addEventListener('click', ()=>{ loadAdminUsers(); loadAdminAccountCards(); });
+document.getElementById('btnAdminRefresh').addEventListener('click', ()=>{ loadAdminUsers(); });
+document.getElementById('btnRingkasanAkunRefresh').addEventListener('click', ()=>{ loadPublicAccountCards(); });
 
 function forceLogout(message){
   currentAccount = null;
