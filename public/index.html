@@ -190,6 +190,12 @@ button{font-family:inherit;}
   font-size:11.5px;color:var(--text-2);display:flex;gap:9px;align-items:flex-start;line-height:1.5;
 }
 .login-demo-hint svg{width:14px;height:14px;color:var(--gold);flex-shrink:0;margin-top:1px;}
+.hidden{display:none !important;}
+.auth-tabs{display:flex;gap:6px;background:var(--surface-2);border:1px solid var(--border-soft);border-radius:10px;padding:4px;margin-bottom:18px;}
+.auth-tab{flex:1;border:none;background:none;padding:9px 0;border-radius:7px;font-size:12.5px;font-weight:600;color:var(--text-3);cursor:pointer;transition:background .15s ease,color .15s ease;}
+.auth-tab:hover{color:var(--text-2);}
+.auth-tab.active{background:var(--gold);color:#1a1305;}
+#loginForm.hidden,#registerForm.hidden{display:none;}
 @media(max-width:860px){ .login-aside{display:none;} }
 @media(max-width:420px){
   .login-form-wrap{padding-left:20px;padding-right:20px;}
@@ -597,30 +603,43 @@ input[type=color]{width:42px;height:32px;padding:2px;border-radius:7px;border:1p
           <div class="b2">Control Panel · Pro</div>
         </div>
       </div>
-      <h1>Masuk ke Akun Anda</h1>
-      <p class="sub">Masukkan Kredensial Operator Untuk Mengakses Dashboard Golden Cent Pro </p>
+      <h1 id="authTitle">Masuk ke Akun Anda</h1>
+      <p class="sub" id="authSubtitle">Masukkan Kredensial Operator Untuk Mengakses Dashboard Golden Cent Pro </p>
+
+      <div class="auth-tabs" id="authTabs" role="tablist">
+        <button type="button" class="auth-tab active" id="tabLogin" role="tab" aria-selected="true">Masuk</button>
+        <button type="button" class="auth-tab" id="tabRegister" role="tab" aria-selected="false">Daftar</button>
+      </div>
 
       <div class="login-error hidden" id="loginError">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l10 18H2z"/><path d="M12 10v4M12 17v.01"/></svg>
         <span id="loginErrorMsg">Username atau password tidak boleh kosong</span>
       </div>
 
+      <!-- ===== FORM MASUK (Gmail + Password + Akun ID MT5) ===== -->
       <form id="loginForm">
         <div class="login-field">
-          <label for="loginUser">Username / Akun ID</label>
+          <label for="loginEmail">Email (Gmail)</label>
           <div class="login-input-row">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
-            <input class="input" id="loginUser" placeholder="mis. 12345678 (Nomor Akun MT5)" autocomplete="username">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>
+            <input class="input" id="loginEmail" type="email" placeholder="nama@gmail.com" autocomplete="username">
           </div>
         </div>
         <div class="login-field">
-          <label for="loginPass">Password (Kode Lisensi)</label>
+          <label for="loginPass">Password</label>
           <div class="login-input-row has-toggle">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg>
-            <input class="input" type="password" id="loginPass" placeholder="A1B2-C3D4-E5F6-20261231-123" autocomplete="current-password">
+            <input class="input" type="password" id="loginPass" placeholder="Password akun Anda" autocomplete="current-password">
             <button type="button" class="toggle-eye" id="toggleEye" aria-label="Tampilkan password" aria-pressed="false">
               <svg id="eyeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>
+          </div>
+        </div>
+        <div class="login-field">
+          <label for="loginUser">Akun ID (Nomor Akun MT5)</label>
+          <div class="login-input-row">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+            <input class="input" id="loginUser" placeholder="mis. 12345678" autocomplete="off" inputmode="numeric">
           </div>
         </div>
 
@@ -636,6 +655,47 @@ input[type=color]{width:42px;height:32px;padding:2px;border-radius:7px;border:1p
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4"/><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/></svg>
           Masuk ke Dashboard
         </button>
+      </form>
+
+      <!-- ===== FORM DAFTAR (Gmail + Password) ===== -->
+      <form id="registerForm" class="hidden">
+        <div class="login-field">
+          <label for="regEmail">Email (Gmail)</label>
+          <div class="login-input-row">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>
+            <input class="input" id="regEmail" type="email" placeholder="nama@gmail.com" autocomplete="email">
+          </div>
+        </div>
+        <div class="login-field">
+          <label for="regPass">Buat Password</label>
+          <div class="login-input-row">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg>
+            <input class="input" type="password" id="regPass" placeholder="Minimal 8 karakter" autocomplete="new-password">
+          </div>
+        </div>
+        <div class="login-field">
+          <label for="regPass2">Ulangi Password</label>
+          <div class="login-input-row">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg>
+            <input class="input" type="password" id="regPass2" placeholder="Ulangi password" autocomplete="new-password">
+          </div>
+        </div>
+        <div class="login-field">
+          <label for="regAccount">Akun ID (Nomor Akun MT5) — opsional</label>
+          <div class="login-input-row">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+            <input class="input" id="regAccount" placeholder="mis. 12345678" autocomplete="off" inputmode="numeric">
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-gold btn-block">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>
+          Daftar Akun
+        </button>
+        <p class="login-demo-hint" style="margin-top:14px">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v.01M12 11v5"/></svg>
+          <span>Setelah daftar, akun Anda menunggu verifikasi admin sebelum bisa mengakses dashboard.</span>
+        </p>
       </form>
 
       <div class="login-demo-hint">
@@ -735,6 +795,10 @@ input[type=color]{width:42px;height:32px;padding:2px;border-radius:7px;border:1p
       <div class="nav-item" data-page="lainnya">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.34 1.87l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.7 1.7 0 00-1.87-.34 1.7 1.7 0 00-1 1.55V21a2 2 0 11-4 0v-.09a1.7 1.7 0 00-1-1.55 1.7 1.7 0 00-1.87.34l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.7 1.7 0 00.34-1.87 1.7 1.7 0 00-1.55-1H3a2 2 0 110-4h.09a1.7 1.7 0 001.55-1 1.7 1.7 0 00-.34-1.87l-.06-.06a2 2 0 112.83-2.83l.06.06a1.7 1.7 0 001.87.34H9a1.7 1.7 0 001-1.55V3a2 2 0 114 0v.09a1.7 1.7 0 001 1.55 1.7 1.7 0 001.87-.34l.06-.06a2 2 0 112.83 2.83l-.06.06a1.7 1.7 0 00-.34 1.87V9a1.7 1.7 0 001.55 1H21a2 2 0 110 4h-.09a1.7 1.7 0 00-1.55 1z"/></svg>
         Pengaturan Lainnya
+      </div>
+      <div class="nav-item hidden" data-page="admin" id="navAdmin">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-4z"/></svg>
+        Admin Panel
       </div>
     </nav>
 
@@ -881,6 +945,34 @@ input[type=color]{width:42px;height:32px;padding:2px;border-radius:7px;border:1p
             <div class="key" id="sealStatus">Belum diperiksa</div>
             <div class="exp" id="sealDetail">Masukkan kode lisensi lalu tekan Validasi</div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ ADMIN PANEL (khusus role admin) ============ -->
+    <div class="page" id="page-admin">
+      <div class="topbar">
+        <div class="topbar-title"><h1>Admin Panel</h1><p>Kelola akun web — approve pendaftaran &amp; kaitkan ke Akun ID MT5</p></div>
+        <button class="btn btn-ghost btn-sm" id="btnAdminRefresh">Muat Ulang</button>
+      </div>
+      <div class="card panel-card">
+        <div class="section-title-row"><h3>Akun Web Terdaftar</h3></div>
+        <p class="sub">Lisensi tetap divalidasi real-time dari EA — panel ini hanya mengelola identitas login (email) dan mengaitkannya ke Akun ID MT5 yang datanya sudah ada di server.</p>
+        <div id="adminUsersTable" style="overflow-x:auto;">
+          <table class="data-table" style="width:100%;border-collapse:collapse;font-size:12.5px;">
+            <thead>
+              <tr style="text-align:left;color:var(--text-3);">
+                <th style="padding:8px 6px;">Email</th>
+                <th style="padding:8px 6px;">Akun ID MT5</th>
+                <th style="padding:8px 6px;">Role</th>
+                <th style="padding:8px 6px;">Status</th>
+                <th style="padding:8px 6px;">Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="adminUsersBody">
+              <tr><td colspan="5" style="padding:14px 6px;color:var(--text-3);">Memuat...</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -1179,6 +1271,7 @@ function goPage(id){
   window.scrollTo({top:0,behavior:'smooth'});
   if(id === 'jurnal'){ loadJurnalMonth(); startJurnalAutoRefresh(); }
   else { stopJurnalAutoRefresh(); }
+  if(id === 'admin'){ loadAdminUsers(); }
 }
 document.querySelectorAll('.nav-item').forEach(n=>n.addEventListener('click', ()=>goPage(n.dataset.page)));
 
@@ -1420,6 +1513,8 @@ let lastLogTimeSeen = 0;
 // data akun customer lain.
 let currentAccount = null;
 let sessionToken = null;
+let webSessionToken = null;
+let currentRole = null;
 let pollTimer = null;
 
 function authHeaders(extra){
@@ -1821,35 +1916,39 @@ function setLoginLoading(loading){
   if(textNode) textNode.textContent = loading ? ' Memeriksa lisensi...' : ' Masuk ke Dashboard';
 }
 
-async function attemptLogin(username, password){
+async function attemptLogin(email, password, accountLogin){
   const r = await fetch(API_BASE + '/api/auth-login', {
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ username, password })
+    body: JSON.stringify({ email, password, accountLogin })
   });
   return r.json();
 }
 
 loginForm.addEventListener('submit', async (e)=>{
   e.preventDefault();
-  const user = document.getElementById('loginUser').value.trim();
+  const email = document.getElementById('loginEmail').value.trim();
   const pass = document.getElementById('loginPass').value.trim();
-  if(!user || !pass){
-    setLoginError('Username atau password tidak boleh kosong');
+  const user = document.getElementById('loginUser').value.trim();
+  if(!email || !pass || !user){
+    setLoginError('Email, password, dan Akun ID wajib diisi');
     return;
   }
 
   loginError.classList.add('hidden');
   setLoginLoading(true);
   try{
-    const res = await attemptLogin(user, pass);
+    const res = await attemptLogin(email, pass, user);
     if(res.ok){
       currentAccount = res.accountLogin;
       sessionToken = res.sessionToken;
+      webSessionToken = res.webSessionToken;
+      currentRole = res.role;
       const remember = document.getElementById('loginRemember').checked;
-      const session = { user: currentAccount, sessionToken, ts: Date.now() };
+      const session = { user: currentAccount, sessionToken, webSessionToken, role: currentRole, email: res.email, ts: Date.now() };
       if(remember) sessionStorage.setItem(LOGIN_SESSION_KEY, JSON.stringify(session));
       loginScreen.classList.add('hidden');
+      applyRoleUI();
       pushLog(`Operator akun MT5 "${user}" masuk ke dashboard — lisensi VALID`, 'profit');
       showToast('Berhasil masuk — lisensi terverifikasi real-time');
       startPolling();
@@ -1857,8 +1956,10 @@ loginForm.addEventListener('submit', async (e)=>{
       const reasonMap = {
         NO_DATA: 'EA belum pernah terhubung — tidak ada data akun untuk divalidasi',
         EA_OFFLINE: 'EA sedang OFFLINE — login butuh EA aktif untuk verifikasi lisensi',
-        BAD_USERNAME: 'Nomor Akun MT5 tidak sesuai',
-        BAD_LICENSE: 'Kode lisensi (password) salah',
+        BAD_CREDENTIALS: 'Email atau password salah',
+        PENDING_APPROVAL: res.error || 'Akun belum diverifikasi admin',
+        NOT_LINKED: res.error || 'Akun belum dikaitkan ke Akun ID MT5',
+        ACCOUNT_MISMATCH: 'Akun ID tidak sesuai dengan email ini',
         LICENSE_INVALID: res.error || 'Lisensi tidak valid',
       };
       setLoginError(reasonMap[res.reason] || res.error || 'Login gagal');
@@ -1868,6 +1969,85 @@ loginForm.addEventListener('submit', async (e)=>{
     setLoginError('Gagal menghubungi server — periksa koneksi internet');
   } finally {
     setLoginLoading(false);
+  }
+});
+
+/* ============================================================
+   TAB SWITCH — Masuk / Daftar
+   ============================================================ */
+const tabLogin = document.getElementById('tabLogin');
+const tabRegister = document.getElementById('tabRegister');
+const registerForm = document.getElementById('registerForm');
+const authTitle = document.getElementById('authTitle');
+const authSubtitle = document.getElementById('authSubtitle');
+
+function switchAuthTab(mode){
+  loginError.classList.add('hidden');
+  if(mode === 'register'){
+    tabRegister.classList.add('active'); tabRegister.setAttribute('aria-selected','true');
+    tabLogin.classList.remove('active'); tabLogin.setAttribute('aria-selected','false');
+    loginForm.classList.add('hidden');
+    registerForm.classList.remove('hidden');
+    authTitle.textContent = 'Daftar Akun Baru';
+    authSubtitle.textContent = 'Daftar dengan Gmail & Password untuk membuat akun panel Anda';
+  } else {
+    tabLogin.classList.add('active'); tabLogin.setAttribute('aria-selected','true');
+    tabRegister.classList.remove('active'); tabRegister.setAttribute('aria-selected','false');
+    registerForm.classList.add('hidden');
+    loginForm.classList.remove('hidden');
+    authTitle.textContent = 'Masuk ke Akun Anda';
+    authSubtitle.textContent = 'Masukkan Kredensial Operator Untuk Mengakses Dashboard Golden Cent Pro ';
+  }
+}
+tabLogin.addEventListener('click', ()=>switchAuthTab('login'));
+tabRegister.addEventListener('click', ()=>switchAuthTab('register'));
+
+/* ============================================================
+   REGISTER — daftar akun web (Gmail + Password). Akun berstatus
+   "pending" sampai admin approve & mengaitkan ke Akun ID MT5.
+   ============================================================ */
+registerForm.addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const email = document.getElementById('regEmail').value.trim();
+  const pass = document.getElementById('regPass').value;
+  const pass2 = document.getElementById('regPass2').value;
+  const accountLogin = document.getElementById('regAccount').value.trim();
+
+  loginError.classList.add('hidden');
+  if(!email || !pass || !pass2){
+    setLoginError('Email dan password wajib diisi');
+    return;
+  }
+  if(pass.length < 8){
+    setLoginError('Password minimal 8 karakter');
+    return;
+  }
+  if(pass !== pass2){
+    setLoginError('Konfirmasi password tidak cocok');
+    return;
+  }
+
+  const submitBtn = registerForm.querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  try{
+    const r = await fetch(API_BASE + '/api/auth-register', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ email, password: pass, accountLogin })
+    });
+    const res = await r.json();
+    if(res.ok){
+      showToast('Pendaftaran berhasil — menunggu verifikasi admin');
+      setLoginError(res.message || 'Pendaftaran berhasil. Menunggu verifikasi admin.', 'gold');
+      registerForm.reset();
+      switchAuthTab('login');
+    } else {
+      setLoginError(res.error || 'Pendaftaran gagal');
+    }
+  } catch(err){
+    setLoginError('Gagal menghubungi server — periksa koneksi internet');
+  } finally {
+    submitBtn.disabled = false;
   }
 });
 
@@ -1889,9 +2069,104 @@ document.getElementById('forgotLink').addEventListener('click', ()=>{
   setLoginError('Hubungi Telegram @daillytrader untuk reset / perpanjangan lisensi', 'gold');
 });
 
+/* ============================================================
+   ADMIN PANEL — hanya terlihat jika currentRole === 'admin'.
+   Mengelola identitas akun WEB (email/status/kaitan Akun ID MT5).
+   TIDAK ADA fitur generate/membuat kode lisensi EA di sini — lisensi
+   tetap hanya sah jika dikonfirmasi real-time oleh EA yang online.
+   ============================================================ */
+function applyRoleUI(){
+  const navAdmin = document.getElementById('navAdmin');
+  if(currentRole === 'admin'){
+    navAdmin.classList.remove('hidden');
+  } else {
+    navAdmin.classList.add('hidden');
+  }
+}
+
+function adminHeaders(){
+  const h = {'Content-Type':'application/json'};
+  if(webSessionToken) h['X-Session-Token'] = webSessionToken;
+  return h;
+}
+
+async function loadAdminUsers(){
+  const body = document.getElementById('adminUsersBody');
+  body.innerHTML = '<tr><td colspan="5" style="padding:14px 6px;color:var(--text-3);">Memuat...</td></tr>';
+  try{
+    const r = await fetch(API_BASE + '/api/admin-users', { headers: adminHeaders() });
+    const data = await r.json();
+    if(!data.ok){
+      body.innerHTML = `<tr><td colspan="5" style="padding:14px 6px;color:#ff9090;">${data.error || 'Gagal memuat data'}</td></tr>`;
+      return;
+    }
+    if(!data.users.length){
+      body.innerHTML = '<tr><td colspan="5" style="padding:14px 6px;color:var(--text-3);">Belum ada akun terdaftar</td></tr>';
+      return;
+    }
+    body.innerHTML = data.users.map(u => `
+      <tr style="border-top:1px solid var(--border-soft);" data-id="${u.id}">
+        <td style="padding:8px 6px;">${u.email}</td>
+        <td style="padding:8px 6px;">
+          <input class="input admin-account-input" data-id="${u.id}" value="${u.account_login || ''}" placeholder="Akun ID MT5" style="width:120px;padding:6px 8px;font-size:12px;">
+        </td>
+        <td style="padding:8px 6px;">${u.role}</td>
+        <td style="padding:8px 6px;">
+          <span style="color:${u.status === 'approved' ? 'var(--gold)' : 'var(--text-3)'};">${u.status}</span>
+        </td>
+        <td style="padding:8px 6px;white-space:nowrap;">
+          <button class="btn btn-ghost btn-sm admin-save-btn" data-id="${u.id}">Simpan Akun ID</button>
+          ${u.status !== 'approved'
+            ? `<button class="btn btn-gold btn-sm admin-approve-btn" data-id="${u.id}">Approve</button>`
+            : `<button class="btn btn-ghost btn-sm admin-revoke-btn" data-id="${u.id}">Set Pending</button>`}
+        </td>
+      </tr>
+    `).join('');
+
+    body.querySelectorAll('.admin-save-btn').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const id = btn.dataset.id;
+        const input = body.querySelector(`.admin-account-input[data-id="${id}"]`);
+        await adminUpdateUser(id, { accountLogin: input.value.trim() });
+      });
+    });
+    body.querySelectorAll('.admin-approve-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=> adminUpdateUser(btn.dataset.id, { status: 'approved' }));
+    });
+    body.querySelectorAll('.admin-revoke-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=> adminUpdateUser(btn.dataset.id, { status: 'pending' }));
+    });
+  } catch(err){
+    body.innerHTML = '<tr><td colspan="5" style="padding:14px 6px;color:#ff9090;">Gagal menghubungi server</td></tr>';
+  }
+}
+
+async function adminUpdateUser(id, patch){
+  try{
+    const r = await fetch(API_BASE + '/api/admin-users', {
+      method:'POST',
+      headers: adminHeaders(),
+      body: JSON.stringify(Object.assign({ id: Number(id) }, patch))
+    });
+    const data = await r.json();
+    if(data.ok){
+      showToast('Perubahan disimpan');
+      loadAdminUsers();
+    } else {
+      showToast(data.error || 'Gagal menyimpan perubahan');
+    }
+  } catch(err){
+    showToast('Gagal menghubungi server');
+  }
+}
+
+document.getElementById('btnAdminRefresh').addEventListener('click', loadAdminUsers);
+
 function forceLogout(message){
   currentAccount = null;
   sessionToken = null;
+  webSessionToken = null;
+  currentRole = null;
   stopPolling();
   sessionStorage.removeItem(LOGIN_SESSION_KEY);
   loginScreen.classList.remove('hidden');
@@ -1904,6 +2179,8 @@ function forceLogout(message){
 document.getElementById('btnLogout').addEventListener('click', ()=>{
   currentAccount = null;
   sessionToken = null;
+  webSessionToken = null;
+  currentRole = null;
   stopPolling();
   sessionStorage.removeItem(LOGIN_SESSION_KEY);
   loginScreen.classList.remove('hidden');
@@ -1934,7 +2211,10 @@ document.getElementById('btnLogout').addEventListener('click', ()=>{
     if(r.ok && data.ok && data.online && s && String(s.accountLogin) === String(session.user) && s.licenseStatus === 'VALID'){
       currentAccount = session.user;
       sessionToken = session.sessionToken;
+      webSessionToken = session.webSessionToken || null;
+      currentRole = session.role || null;
       loginScreen.classList.add('hidden');
+      applyRoleUI();
       startPolling();
     } else {
       sessionStorage.removeItem(LOGIN_SESSION_KEY);
