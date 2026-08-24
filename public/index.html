@@ -577,7 +577,17 @@ input[type=color]{width:42px;height:32px;padding:2px;border-radius:7px;border:1p
 }
 
 /* ============ RESPONSIVE: ADMIN PANEL & FORM UMUM ============ */
-@media(max-width:640px){
+
+/* Baris tombol aksi: selalu boleh wrap ke baris baru, tidak pernah memaksa tabel melebar */
+.admin-actions{
+  display:flex;flex-wrap:wrap;gap:6px;align-items:center;
+}
+.admin-actions .btn{white-space:nowrap;}
+
+/* Breakpoint dinaikkan ke 900px supaya tablet & layar sempit lainnya
+   (bukan cuma HP kecil) juga mendapat mode kartu yang rapi, tanpa perlu
+   scroll horizontal pada tabel "Akun Web Terdaftar". */
+@media(max-width:900px){
   .panel-card{padding:16px 14px;}
   /* form generate lisensi: satu kolom penuh di layar sempit, tombol full-width */
   #page-admin div[style*="display:flex"][style*="flex-wrap:wrap"]{gap:10px;}
@@ -608,8 +618,17 @@ input[type=color]{width:42px;height:32px;padding:2px;border-radius:7px;border:1p
     flex-direction:column;align-items:stretch;gap:6px;margin-top:4px;
   }
   #adminUsersTable tbody td:last-child::before{content:none;}
+  #adminUsersTable tbody td:last-child .admin-actions{width:100%;}
   #adminUsersTable tbody td:last-child .btn{width:100%;justify-content:center;}
 }
+
+/* Layar besar (>900px): tabel tetap dalam bentuk tabel biasa, tapi kolom
+   Aksi dibiarkan wrap 2 baris tombol alih-alih memaksa scroll horizontal. */
+@media(min-width:901px){
+  #adminUsersTable table{table-layout:fixed;}
+  #adminUsersTable th:last-child,#adminUsersTable td:last-child{width:1%;min-width:300px;}
+}
+
 @media(max-width:400px){
   .topbar-title h1{font-size:22px;}
   .panel-card{padding:14px 12px;}
@@ -2250,15 +2269,17 @@ async function loadAdminUsers(){
         <td data-label="Status" style="padding:8px 6px;">
           <span style="color:${u.status === 'approved' ? 'var(--gold)' : 'var(--text-3)'};">${u.status}</span>
         </td>
-        <td style="padding:8px 6px;white-space:nowrap;">
-          <button class="btn btn-ghost btn-sm admin-save-btn" data-id="${u.id}">Simpan Akun ID</button>
-          ${u.status !== 'approved'
-            ? `<button class="btn btn-gold btn-sm admin-approve-btn" data-id="${u.id}">Approve</button>`
-            : `<button class="btn btn-ghost btn-sm admin-revoke-btn" data-id="${u.id}">Set Pending</button>`}
-          <button class="btn btn-ghost btn-sm admin-genkey-btn" data-id="${u.id}">Generate Key</button>
-          ${u.role !== 'admin'
-            ? `<button class="btn btn-sm admin-delete-btn" data-id="${u.id}" data-email="${u.email}" style="background:rgba(255,80,80,.12);color:#ff6b6b;border:1px solid rgba(255,80,80,.3);">Hapus Akun & Lisensi</button>`
-            : ''}
+        <td style="padding:8px 6px;">
+          <div class="admin-actions">
+            <button class="btn btn-ghost btn-sm admin-save-btn" data-id="${u.id}">Simpan Akun ID</button>
+            ${u.status !== 'approved'
+              ? `<button class="btn btn-gold btn-sm admin-approve-btn" data-id="${u.id}">Approve</button>`
+              : `<button class="btn btn-ghost btn-sm admin-revoke-btn" data-id="${u.id}">Set Pending</button>`}
+            <button class="btn btn-ghost btn-sm admin-genkey-btn" data-id="${u.id}">Generate Key</button>
+            ${u.role !== 'admin'
+              ? `<button class="btn btn-sm admin-delete-btn" data-id="${u.id}" data-email="${u.email}" style="background:rgba(255,80,80,.12);color:#ff6b6b;border:1px solid rgba(255,80,80,.3);">Hapus Akun & Lisensi</button>`
+              : ''}
+          </div>
         </td>
       </tr>
     `).join('');
