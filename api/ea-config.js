@@ -23,10 +23,17 @@ export default async function handler(req, res) {
       .maybeSingle();
     if (error) return res.status(500).json({ ok: false, error: String(error) });
 
-    // dikembalikan sebagai string JSON supaya kompatibel dengan EA lama
-    // yang mem-parsing hasil GET ini sebagai teks JSON, sama seperti
-    // perilaku redis.get() sebelumnya.
-    const cfg = data?.config ? JSON.stringify(data.config) : null;
+    // PENTING: config dikembalikan sebagai OBJEK JSON biasa (bukan
+    // string yang di-JSON.stringify lagi). Jika di-stringify di sini,
+    // res.json() akan membungkusnya SEKALI LAGI sehingga semua tanda
+    // kutip di dalamnya ter-escape (\"key\":value). Parser sederhana
+    // di EA (ExtractJsonNumber/ExtractJsonString) mencari pola persis
+    // "key": (kutip lurus) dan TIDAK akan pernah menemukan field
+    // apa pun kalau konfig di-double-encode seperti itu — akibatnya
+    // panel info EA tidak pernah ikut berubah walau sudah disimpan
+    // dari web. Dengan config sebagai objek biasa, hasil akhir body
+    // JSON tetap hanya di-encode SATU KALI dan pola "key": tetap utuh.
+    const cfg = data?.config ?? null;
     return res.status(200).json({ ok: true, config: cfg });
   }
 
