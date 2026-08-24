@@ -706,7 +706,7 @@ input[type=color]{width:42px;height:32px;padding:2px;border-radius:7px;border:1p
           <label for="loginUser">Akun ID (Nomor Akun MT5) </label>
           <div class="login-input-row">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
-            <input class="input" id="loginUser" placeholder="mis. 12345678 " autocomplete="off" inputmode="numeric">
+            <input class="input" id="loginUser" placeholder="mis. 12345678 (kosongkan untuk admin)" autocomplete="off" inputmode="numeric">
           </div>
         </div>
 
@@ -1832,12 +1832,16 @@ async function sendCommand(command){
 async function loadConfigFromServer(){
   if(!currentAccount || !sessionToken) return;
   try{
-    const r = await fetch(API_BASE + '/api/ea-config?account=' + encodeURIComponent(currentAccount), {
+    const r = await fetch(API_BASE + '/api/web-config?account=' + encodeURIComponent(currentAccount), {
       cache:'no-store',
       headers: authHeaders()
     });
     const data = await r.json().catch(()=>({ok:false}));
-    if(r.status === 401){ forceLogout('Sesi berakhir — silakan login kembali'); return; }
+    // CATATAN: 401 di sini SENGAJA tidak memicu forceLogout(). Gagal
+    // memuat config bukan alasan untuk mengeluarkan operator dari sesi
+    // yang sedang berjalan — cukup biarkan form pakai nilai default/
+    // terakhir, dan pollState() (yang memang berwenang menilai sesi)
+    // yang akan memutuskan kalau sesi betul-betul harus berakhir.
     if(!data.ok || !data.config) return; // belum pernah ada config tersimpan -> biarkan default SCHEMA
 
     const cfg = data.config;
