@@ -1352,9 +1352,14 @@ document.querySelectorAll('[data-key]').forEach(el=>{
 });
 document.querySelectorAll('.save-btn').forEach(b=>b.addEventListener('click', async ()=>{
   const groupTitle = b.closest('.topbar').querySelector('h1').textContent;
-  await sendConfig();
-  pushLog('Konfigurasi "'+groupTitle+'" dikirim ke EA', 'info');
-  showToast('Konfigurasi "'+groupTitle+'" berhasil disimpan & dikirim ke EA');
+  const ok = await sendConfig();
+  if(ok){
+    pushLog('Konfigurasi "'+groupTitle+'" dikirim ke EA', 'info');
+    showToast('Konfigurasi "'+groupTitle+'" berhasil disimpan & dikirim ke EA');
+  } else {
+    pushLog('Gagal mengirim konfigurasi "'+groupTitle+'" ke server', 'error');
+    showToast('Gagal menyimpan konfigurasi — cek koneksi / login ulang lalu coba lagi');
+  }
 }));
 
 /* ============================================================
@@ -1753,15 +1758,22 @@ async function sendCommand(command){
 }
 
 async function sendConfig(){
-  if(!currentAccount || !sessionToken) return;
+  if(!currentAccount || !sessionToken){
+    showToast('Sesi belum login — tidak bisa menyimpan konfigurasi');
+    return false;
+  }
   try{
     const r = await fetch(API_BASE + '/api/ea-config', {
       method:'POST',
       headers: authHeaders({'Content-Type':'application/json'}),
       body: JSON.stringify(Object.assign({}, state, { account: currentAccount }))
     });
-    if(r.status === 401) forceLogout('Sesi berakhir — silakan login kembali');
-  }catch(err){ /* silent — akan tersinkron di polling berikutnya */ }
+    const data = await r.json().catch(()=>({ok:false}));
+    if(r.status === 401){ forceLogout('Sesi berakhir — silakan login kembali'); return false; }
+    return !!(r.ok && data.ok);
+  }catch(err){
+    return false;
+  }
 }
 
 render();
