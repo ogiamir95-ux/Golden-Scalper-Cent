@@ -1705,13 +1705,36 @@ async function pollState(){
       sim.sellLots = s.sellLots ?? sim.sellLots;
       sim.running = !!s.running;
 
-      if(s.magicNumber) state.magicNumber = s.magicNumber;
-      if(s.startHour!==undefined) state.startHour = s.startHour;
-      if(s.startMinute!==undefined) state.startMinute = s.startMinute;
-      if(s.endHour!==undefined) state.endHour = s.endHour;
-      if(s.endMinute!==undefined) state.endMinute = s.endMinute;
-      if(s.dailyTargetProfit) state.dailyProfit = s.dailyTargetProfit;
-      if(s.dailyTargetLoss) state.dailyLoss = s.dailyTargetLoss;
+      // FIX PENTING: baris di bawah ini DIHAPUS —
+      //   if(s.magicNumber) state.magicNumber = s.magicNumber;
+      //   if(s.startHour!==undefined) state.startHour = s.startHour;
+      //   if(s.startMinute!==undefined) state.startMinute = s.startMinute;
+      //   if(s.endHour!==undefined) state.endHour = s.endHour;
+      //   if(s.endMinute!==undefined) state.endMinute = s.endMinute;
+      //   if(s.dailyTargetProfit) state.dailyProfit = s.dailyTargetProfit;
+      //   if(s.dailyTargetLoss) state.dailyLoss = s.dailyTargetLoss;
+      //
+      // INI AKAR MASALAH "target daily di web diubah, tapi tidak pernah
+      // benar-benar tersimpan/terlihat berubah":
+      // `state` di sini adalah SATU-SATUNYA sumber data untuk field input
+      // config (termasuk dailyProfit) DAN untuk body yang dikirim ulang
+      // saat tombol "Simpan Perubahan" ditekan (lihat sendConfig()).
+      // pollState() dipanggil setiap 3 detik dan mengambil /api/state,
+      // yaitu SNAPSHOT STATUS milik EA (dihitung dari g_cfgDailyProfitValue
+      // versi EA saat itu) — bukan config target dari database.
+      //
+      // EA sendiri baru menarik ulang config terbaru setiap ~5 siklus
+      // OnTimer (lihat FetchConfigFromWeb() di EA), jadi selama jeda itu
+      // s.dailyTargetProfit yang dilaporkan EA MASIH nilai LAMA. Baris
+      // yang dihapus di atas menimpa balik state.dailyProfit browser
+      // dengan nilai lama itu tiap 3 detik — sehingga walau POST simpan
+      // ke /api/ea-config sukses, tampilan di web (dan input field-nya)
+      // langsung tertimpa balik ke angka lama sebelum sempat Anda lihat
+      // hasilnya, dan field input jadi terasa "tidak pernah berubah".
+      // Field read-only murni (equity, balance, buyLayers, dst di atas)
+      // aman disinkron dari status EA karena tidak pernah diedit user;
+      // field target/jadwal HANYA boleh diisi dari hasil GET config atau
+      // dari input user sendiri, tidak dari polling status.
 
       const statusText = document.getElementById('statusText');
       if(statusText && s.statusText) statusText.textContent = s.statusText;
@@ -1727,6 +1750,18 @@ async function pollState(){
 
       const rowSymbol = document.getElementById('rowSymbol');
       if(rowSymbol && s.symbol) rowSymbol.textContent = s.symbol;
+
+      // Tampilan read-only murni (bukan bagian form config yang bisa
+      // diedit user) — aman diisi langsung dari status EA tanpa menyentuh
+      // `state`, supaya tidak lagi menimpa balik nilai yang baru disimpan.
+      const rowMagic = document.getElementById('rowMagic');
+      if(rowMagic && s.magicNumber) rowMagic.textContent = s.magicNumber;
+
+      const rowHours = document.getElementById('rowHours');
+      if(rowHours && s.startHour!==undefined && s.startMinute!==undefined && s.endHour!==undefined && s.endMinute!==undefined){
+        const p2 = n => String(n).padStart(2,'0');
+        rowHours.textContent = p2(s.startHour)+':'+p2(s.startMinute)+' – '+p2(s.endHour)+':'+p2(s.endMinute)+' WIB';
+      }
 
       const rowAccType = document.getElementById('rowAccType');
       if(rowAccType && s.accountType){
