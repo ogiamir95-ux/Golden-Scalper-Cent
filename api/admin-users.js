@@ -1,10 +1,22 @@
-import { listWebUsers, updateWebUser, getWebUserById, setCors, verifyWebSessionToken, getSessionFromReq } from "../lib/db.js";
+import {
+  listWebUsers,
+  updateWebUser,
+  getWebUserById,
+  deleteWebUser,
+  deleteAccountData,
+  setCors,
+  verifyWebSessionToken,
+  getSessionFromReq,
+} from "../lib/db.js";
 
 // Panel ADMIN untuk mengelola akun web (bukan lisensi EA).
 //
-// GET  -> daftar semua akun web
-// POST -> update satu akun web: approve/reject, atau mengaitkan ke
-//         satu account_login (Nomor Akun MT5).
+// GET    -> daftar semua akun web
+// POST   -> update satu akun web: approve/reject, atau mengaitkan ke
+//           satu account_login (Nomor Akun MT5).
+// DELETE -> hapus PERMANEN satu akun web + data akun EA/lisensi
+//           terkaitnya (khusus admin). Setelah dihapus, email tsb
+//           tidak bisa login lagi dan harus daftar ulang dari nol.
 //
 // PENTING: endpoint ini TIDAK membuat/menghasilkan kode lisensi EA.
 export default async function handler(req, res) {
@@ -48,6 +60,34 @@ export default async function handler(req, res) {
 
       const updated = await updateWebUser(id, patch);
       return res.status(200).json({ ok: true, user: updated });
+    }
+
+    if (req.method === "DELETE") {
+      const body = req.body || {};
+      const id = Number(body.id ?? req.query?.id);
+      if (!id) return res.status(400).json({ ok: false, error: "Parameter 'id' wajib diisi" });
+
+      const target = await getWebUserById(id);
+      if (!target) return res.status(404).json({ ok: false, error: "Akun tidak ditemukan" });
+
+      // Jangan biarkan admin tidak sengaja menghapus akun admin lain
+      // (termasuk dirinya sendiri) lewat panel ini — cegah lockout.
+      if (target.role === "admin") {
+        return res.status(400).json({ ok: false, error: "Tidak bisa menghapus akun admin dari panel ini" });
+      }
+
+      const accountLogin = target.account_login;
+
+      // Hapus data akun EA/lisensi (accounts + journal_entries; ea_logs
+      // ikut terhapus otomatis via ON DELETE CASCADE) SEBELUM menghapus
+      // baris web_users, supaya kalau langkah ini gagal, akun web tetap
+      // konsisten (tidak setengah terhapus).
+      if (accountLogin) {
+        await deleteAccountData(accountLogin);
+      }
+      await deleteWebUser(id);
+
+      return res.status(200).json({ ok: true, deletedId: id, accountLogin: accountLogin || null });
     }
 
     return res.status(405).json({ ok: false, error: "Method not allowed" });
