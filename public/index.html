@@ -706,7 +706,7 @@ input[type=color]{width:42px;height:32px;padding:2px;border-radius:7px;border:1p
           <label for="loginUser">Akun ID (Nomor Akun MT5) </label>
           <div class="login-input-row">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
-            <input class="input" id="loginUser" placeholder="mis. 12345678 (kosongkan untuk admin)" autocomplete="off" inputmode="numeric">
+            <input class="input" id="loginUser" placeholder="mis. 12345678 " autocomplete="off" inputmode="numeric">
           </div>
         </div>
 
@@ -1820,6 +1820,47 @@ async function sendCommand(command){
   }
 }
 
+// MULTI-DEVICE / MULTI-LOGIN: dipanggil sekali setiap kali login berhasil
+// (baik login manual maupun auto-restore sesi). Mengambil config yang
+// TERAKHIR DISIMPAN untuk account_login ini dari server (GET /api/ea-config)
+// dan menuliskannya ke `state` + ke semua input form di halaman Settings.
+// Tanpa ini, browser/device manapun yang baru login akan menampilkan
+// nilai DEFAULT hardcoded dari SCHEMA, bukan konfigurasi yang sebenarnya
+// sudah disimpan sebelumnya oleh operator lain (atau oleh diri sendiri
+// dari device lain) — sehingga terlihat seolah "konfigurasi tidak sinkron
+// antar login" padahal sebenarnya cuma belum pernah dimuat.
+async function loadConfigFromServer(){
+  if(!currentAccount || !sessionToken) return;
+  try{
+    const r = await fetch(API_BASE + '/api/ea-config?account=' + encodeURIComponent(currentAccount), {
+      cache:'no-store',
+      headers: authHeaders()
+    });
+    const data = await r.json().catch(()=>({ok:false}));
+    if(r.status === 401){ forceLogout('Sesi berakhir — silakan login kembali'); return; }
+    if(!data.ok || !data.config) return; // belum pernah ada config tersimpan -> biarkan default SCHEMA
+
+    const cfg = data.config;
+    SCHEMA.forEach(g=>g.fields.forEach(f=>{
+      if(Object.prototype.hasOwnProperty.call(cfg, f.k)){
+        state[f.k] = cfg[f.k];
+        const el = document.getElementById('f_' + f.k);
+        if(!el) return;
+        if(el.type === 'checkbox') el.checked = !!cfg[f.k];
+        else {
+          el.value = cfg[f.k];
+          if(el.type === 'color' && el.nextElementSibling) el.nextElementSibling.textContent = String(cfg[f.k]).toUpperCase();
+        }
+      }
+    }));
+    refreshDependentUI();
+  }catch(err){
+    // Diam-diam gagal — form tetap menampilkan nilai terakhir yang
+    // diketahui (default SCHEMA atau hasil load sebelumnya); polling
+    // /api/state tetap berjalan normal terlepas dari ini.
+  }
+}
+
 async function sendConfig(){
   if(!currentAccount || !sessionToken){
     showToast('Sesi belum login — tidak bisa menyimpan konfigurasi');
@@ -2148,6 +2189,7 @@ loginForm.addEventListener('submit', async (e)=>{
       applyRoleUI();
       pushLog(`Operator akun MT5 "${user}" masuk ke dashboard — lisensi VALID`, 'profit');
       showToast('Berhasil masuk — lisensi terverifikasi real-time');
+      await loadConfigFromServer();
       startPolling();
     } else {
       const reasonMap = {
@@ -2730,6 +2772,7 @@ document.getElementById('btnLogout').addEventListener('click', ()=>{
       currentRole = session.role || null;
       loginScreen.classList.add('hidden');
       applyRoleUI();
+      await loadConfigFromServer();
       startPolling();
     } else {
       sessionStorage.removeItem(LOGIN_SESSION_KEY);
