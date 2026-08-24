@@ -622,11 +622,20 @@ input[type=color]{width:42px;height:32px;padding:2px;border-radius:7px;border:1p
   #adminUsersTable tbody td:last-child .btn{width:100%;justify-content:center;}
 }
 
-/* Layar besar (>900px): tabel tetap dalam bentuk tabel biasa, tapi kolom
-   Aksi dibiarkan wrap 2 baris tombol alih-alih memaksa scroll horizontal. */
+/* Layar besar (>900px): tabel tetap dalam bentuk tabel biasa. Kolom
+   Email/Akun ID MT5/Role/Status diberi lebar wajar & tidak melar, sisa
+   ruang diberikan ke kolom Aksi supaya tombol tidak pernah kepotong —
+   kalau memang kurang ruang, kolom Aksi yang wrap ke bawah, bukan
+   memaksa total tabel melebihi lebar container/viewport. */
 @media(min-width:901px){
-  #adminUsersTable table{table-layout:fixed;}
-  #adminUsersTable th:last-child,#adminUsersTable td:last-child{width:1%;min-width:300px;}
+  #adminUsersTable{overflow-x:visible;}
+  #adminUsersTable table{table-layout:auto;width:100%;}
+  #adminUsersTable th:nth-child(1),#adminUsersTable td:nth-child(1){max-width:220px;overflow-wrap:break-word;}
+  #adminUsersTable th:nth-child(2),#adminUsersTable td:nth-child(2){width:150px;}
+  #adminUsersTable th:nth-child(3),#adminUsersTable td:nth-child(3){width:80px;}
+  #adminUsersTable th:nth-child(4),#adminUsersTable td:nth-child(4){width:100px;}
+  #adminUsersTable th:last-child,#adminUsersTable td:last-child{width:auto;}
+  #adminUsersTable .admin-actions{flex-wrap:wrap;}
 }
 
 @media(max-width:400px){
