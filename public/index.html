@@ -675,7 +675,7 @@ input[type=color]{width:42px;height:32px;padding:2px;border-radius:7px;border:1p
           </div>
         </div>
         <div class="login-field">
-          <label for="loginUser">Akun ID (Nomor Akun MT5) — kosongkan jika login sebagai admin</label>
+          <label for="loginUser">Akun ID (Nomor Akun MT5) </label>
           <div class="login-input-row">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
             <input class="input" id="loginUser" placeholder="mis. 12345678 (kosongkan untuk admin)" autocomplete="off" inputmode="numeric">
@@ -720,7 +720,7 @@ input[type=color]{width:42px;height:32px;padding:2px;border-radius:7px;border:1p
           </div>
         </div>
         <div class="login-field">
-          <label for="regAccount">Akun ID (Nomor Akun MT5) — opsional</label>
+          <label for="regAccount">Akun ID (Nomor Akun MT5) — Wajib</label>
           <div class="login-input-row">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
             <input class="input" id="regAccount" placeholder="mis. 12345678" autocomplete="off" inputmode="numeric">
@@ -773,7 +773,7 @@ input[type=color]{width:42px;height:32px;padding:2px;border-radius:7px;border:1p
       </div>
       <div class="nav-item" data-page="ringkasan-akun" id="navRingkasanAkun">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="7" height="16" rx="1.5"/><rect x="14" y="4" width="7" height="10" rx="1.5"/></svg>
-        Ringkasan Akun Customer
+        Cline Account 
       </div>
       <div class="nav-item" data-page="downloadea">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16"/></svg>
@@ -943,7 +943,7 @@ input[type=color]{width:42px;height:32px;padding:2px;border-radius:7px;border:1p
           <h3>Log Aktivitas</h3>
           <span class="eyebrow log-live"><span class="dot-sm"></span>Live</span>
         </div>
-        <p class="sub">Riwayat aksi Expert Advisor Terbaru (disimulasikan)</p>
+        <p class="sub">Riwayat aksi Expert Advisor Terbaru</p>
         <div class="timeline" id="activityLog"></div>
       </div>
     </div>
@@ -1089,7 +1089,7 @@ input[type=color]{width:42px;height:32px;padding:2px;border-radius:7px;border:1p
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
             </div>
             <div>
-              <div class="ea-file-name">Golden_Scalper_Cent.ex5</div>
+              <div class="ea-file-name">Golden Scalper Cent.ex5</div>
               <div class="ea-file-meta">Expert Advisor &nbsp;·&nbsp; MetaTrader 5</div>
             </div>
           </div>
@@ -2256,6 +2256,9 @@ async function loadAdminUsers(){
             ? `<button class="btn btn-gold btn-sm admin-approve-btn" data-id="${u.id}">Approve</button>`
             : `<button class="btn btn-ghost btn-sm admin-revoke-btn" data-id="${u.id}">Set Pending</button>`}
           <button class="btn btn-ghost btn-sm admin-genkey-btn" data-id="${u.id}">Generate Key</button>
+          ${u.role !== 'admin'
+            ? `<button class="btn btn-sm admin-delete-btn" data-id="${u.id}" data-email="${u.email}" style="background:rgba(255,80,80,.12);color:#ff6b6b;border:1px solid rgba(255,80,80,.3);">Hapus Akun & Lisensi</button>`
+            : ''}
         </td>
       </tr>
     `).join('');
@@ -2288,8 +2291,42 @@ async function loadAdminUsers(){
         document.getElementById('genAccountLogin').scrollIntoView({behavior:'smooth', block:'center'});
       });
     });
+    body.querySelectorAll('.admin-delete-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=> adminDeleteUser(btn.dataset.id, btn.dataset.email));
+    });
   } catch(err){
     body.innerHTML = '<tr><td colspan="5" style="padding:14px 6px;color:#ff9090;">Gagal menghubungi server</td></tr>';
+  }
+}
+
+// Hapus PERMANEN satu akun web + data akun EA/lisensi terkaitnya.
+// Setelah dihapus: email tsb tidak bisa login lagi (harus daftar ulang
+// dari nol), dan kartunya otomatis hilang dari "Ringkasan Akun Customer"
+// karena kedua tampilan itu bersumber dari tabel yang sama di server.
+async function adminDeleteUser(id, email){
+  const sure = confirm(
+    `Hapus akun "${email}" secara PERMANEN?\n\n` +
+    `Ini akan menghapus login web DAN data lisensi/akun EA yang terkait.\n` +
+    `Akun ini tidak akan bisa login lagi — harus daftar ulang dari awal.\n\n` +
+    `Tindakan ini tidak bisa dibatalkan. Lanjutkan?`
+  );
+  if(!sure) return;
+  try{
+    const r = await fetch(API_BASE + '/api/admin-users', {
+      method: 'DELETE',
+      headers: adminHeaders(),
+      body: JSON.stringify({ id: Number(id) }),
+    });
+    const data = await r.json();
+    if(!data.ok){
+      showToast(data.error || 'Gagal menghapus akun');
+      return;
+    }
+    showToast('Akun & lisensi berhasil dihapus');
+    loadAdminUsers();
+    loadAdminAccountCards();
+  } catch(err){
+    showToast('Gagal menghubungi server');
   }
 }
 
