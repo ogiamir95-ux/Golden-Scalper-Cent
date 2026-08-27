@@ -1,58 +1,64 @@
-# Panduan Update: Remote License Revocation
+# Update: Blacklist Lisensi Permanen (Anti Pasang-Ulang)
 
-## Apa yang berubah
-Sekarang saat admin klik **"Hapus Akun & Lisensi"** di panel admin, EA yang
-sedang berjalan akan benar-benar dipaksa berhenti/keluar (sesuai pengaturan
-`InpLicenseAction` yang sudah ada), bukan cuma menghapus baris di database
-tanpa efek ke EA yang sedang jalan.
+## Masalah yang diperbaiki
+Sebelumnya, kalau kamu hapus baris `accounts` (baik lewat alur revoke
+normal, maupun dihapus manual di Supabase), lalu EA yang sama dipasang
+ulang dengan **kode lisensi yang sama**, EA akan dianggap "akun baru"
+oleh server (TOFU) dan lisensinya jadi VALID lagi — padahal sudah pernah
+di-revoke admin.
 
-## Cara kerja singkat
-1. Admin klik hapus → server **tidak langsung menghapus** baris akun, tapi
-   menandainya `revoked = true` dan menitipkan `pending_command = "REVOKE"`.
-2. EA yang sedang polling (`ea-update.js`, tiap ~3 detik, dan `ea-command.js`
-   sebagai cadangan) menerima command `REVOKE`.
-3. EA menjalankan aksi sesuai `InpLicenseAction` yang sudah kamu set di
-   input EA (Finish Cycle+Stop / Finish Cycle+Remove / Close+Stop /
-   Close+Remove) — **berlaku walau `InpLicenseCheckEnabled` dimatikan**,
-   karena revoke adalah keputusan admin, bukan pengaturan lokal.
-4. Setelah aksi selesai (posisi sudah ditutup / bot sudah berhenti), EA
-   mengirim konfirmasi (`revokeAck: true`) ke server.
-5. Server baru menghapus PERMANEN baris akun tersebut setelah menerima
-   konfirmasi itu — supaya sinyal revoke tidak hilang kalau kebetulan EA
-   sedang offline saat admin menghapus akun (server akan terus mengirim
-   ulang `REVOKE` sampai EA online lagi dan meng-ack).
+## Solusi
+Kode lisensi (diidentifikasi lewat hash-nya) yang pernah di-revoke
+sekarang dicatat di tabel baru **`revoked_licenses`** yang PERMANEN —
+tidak ikut terhapus meski baris `accounts`-nya dihapus. Setiap EA sync,
+server cek hash kode lisensi yang dikirim EA terhadap tabel ini **sebelum**
+logika lain — kalau cocok, server langsung membalas command `REVOKE` lagi,
+walau baris `accounts`-nya sudah tidak ada / dianggap baru.
+
+**Kode lisensi baru** (hash beda) untuk akun yang sama **tetap boleh
+dipakai normal** — blacklist ini spesifik ke kode lama yang di-revoke,
+bukan ke nomor akun MT5-nya.
 
 ## File yang perlu di-update
-| File | Lokasi di project | Perubahan |
+| File | Lokasi | Perubahan |
 |---|---|---|
-| `schema.sql` | `supabase/schema.sql` | Tambah kolom `revoked`, `revoked_at` |
-| `db.js` | `lib/db.js` | `deleteAccountData()` jadi revoke dulu (bukan hapus langsung) + fungsi baru `purgeRevokedAccount()` |
-| `ea-update.js` | `api/ea-update.js` | Terima `revokeAck` dari EA, kirim ulang command `REVOKE` selama belum di-ack |
-| `ea-command.js` | `api/ea-command.js` | Jalur cadangan juga konsisten terus mengirim `REVOKE` |
-| `Golden_Scalper_Cent_Pro.mq5` | root project | Tangani command `REVOKE`, integrasi ke `InpLicenseAction`, kirim `revokeAck` |
+| `schema.sql` | `supabase/schema.sql` | Tabel baru `revoked_licenses` |
+| `db.js` | `lib/db.js` | `deleteAccountData()` sekarang juga menulis hash ke blacklist; fungsi baru `isLicenseRevoked()` |
+| `ea-update.js` | `api/ea-update.js` | Cek blacklist di awal, sebelum TOFU — balas `REVOKE` kalau hash cocok |
 
-`api/admin-users.js` **tidak perlu diubah** — endpoint DELETE-nya tetap
-memanggil `deleteAccountData()` seperti sebelumnya, hanya perilaku di
-dalam fungsi itu yang berubah.
+File `.mq5` dan `ea-command.js` **tidak berubah** di update ini (masih pakai versi sebelumnya).
 
 ## Langkah deploy
-1. **Jalankan migrasi SQL di Supabase** (SQL Editor):
+1. **Jalankan SQL ini di Supabase SQL Editor:**
    ```sql
-   alter table accounts add column if not exists revoked boolean not null default false;
-   alter table accounts add column if not exists revoked_at timestamptz;
+   create table if not exists revoked_licenses (
+     license_key_hash text primary key,
+     account_login    text,
+     revoked_at       timestamptz not null default now(),
+     reason           text
+   );
+   alter table revoked_licenses enable row level security;
    ```
-   (Sudah termasuk juga kalau kamu jalankan ulang seluruh `schema.sql` yang baru — aman, semua pakai `if not exists`.)
-2. Ganti file `lib/db.js`, `api/ea-update.js`, `api/ea-command.js` dengan versi baru di paket ini.
-3. Ganti `Golden_Scalper_Cent_Pro.mq5` dengan versi baru, lalu **compile ulang** di MetaEditor dan install ulang ke chart customer (atau kirim update ke customer untuk update EA mereka).
-4. Deploy ulang project Vercel-nya (`vercel --prod` atau lewat git push, sesuai setup kamu).
+2. Ganti `lib/db.js` dan `api/ea-update.js` dengan versi baru di paket ini.
+3. Deploy ulang ke Vercel.
 
-## Catatan penting
-- EA lama (belum update) yang masih terpasang di chart customer **tidak
-  akan tahu soal command `REVOKE`** — command itu cuma diabaikan
-  (`ExecuteWebCommand()` versi lama tidak mengenalinya), jadi fitur ini
-  baru efektif setelah customer update EA-nya ke versi baru.
-- Selama EA belum sempat online & meng-ack, baris akun tetap ada di
-  database (berstatus `revoked = true`) — ini disengaja, supaya sinyal
-  revoke tidak hilang. Kalau kamu ingin cara "paksa hapus langsung tanpa
-  menunggu ack" tetap tersedia sebagai opsi darurat, beri tahu saya, nanti
-  saya tambahkan tombol terpisah untuk itu.
+## Cara kerja setelah update
+- Admin klik "Hapus Akun & Lisensi" → hash kode lisensi yang sedang aktif
+  di akun itu langsung dicatat permanen ke `revoked_licenses`, baris
+  `accounts` ditandai revoked seperti sebelumnya.
+- EA yang online → menerima command `REVOKE`, jalankan aksi sesuai
+  `InpLicenseAction`, kirim `revokeAck` → baris `accounts` terhapus.
+- **Kalau EA yang sama dipasang ulang dengan kode lisensi lama** (walau
+  baris `accounts` sudah tidak ada lagi): sync pertama EA akan langsung
+  dibalas `REVOKE` oleh server, karena hash-nya sudah ada di blacklist.
+- Kalau kamu generate **kode lisensi baru** untuk akun itu, kode baru ini
+  hash-nya beda → tidak kena blacklist → EA jalan normal seperti biasa.
+
+## Catatan
+- Blacklist ini **tidak ada cara hapus dari UI** (memang sengaja permanen).
+  Kalau suatu saat kamu perlu "un-blacklist" satu kode lisensi tertentu
+  (misal salah revoke), itu perlu dihapus manual lewat SQL:
+  ```sql
+  delete from revoked_licenses where license_key_hash = 'HASH_DI_SINI';
+  ```
+  Beri tahu saya kalau mau saya buatkan tombol khusus untuk ini di admin panel.
