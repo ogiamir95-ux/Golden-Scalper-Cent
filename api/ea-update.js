@@ -6,6 +6,7 @@ import {
   checkEAToken,
   setCors,
   todayDateKeyWIB,
+  purgeRevokedAccount,
 } from "../lib/db.js";
 
 // Dipanggil oleh EA (WebRequest POST) setiap beberapa detik untuk mengirim
@@ -42,6 +43,24 @@ export default async function handler(req, res) {
     const licenseKeyHash = String(body.licenseKeyHash ?? "");
     const existing = await getAccount(accountLogin);
     const boundHash = existing?.license_key_hash;
+
+    // REVOKE ACK: EA mengirim revokeAck=true setelah selesai menjalankan
+    // aksi InpLicenseAction akibat command REVOKE (posisi sudah
+    // ditutup/EA sudah stop atau keluar dari chart). Ini titik aman utk
+    // menghapus PERMANEN baris akun ini dari server — sinyal revoke
+    // sudah pasti sampai & dieksekusi, tidak ada risiko hilang di tengah jalan.
+    if (existing?.revoked && body.revokeAck === true) {
+      await purgeRevokedAccount(accountLogin);
+      return res.status(200).json({ ok: true, command: null, revoked: true, purged: true });
+    }
+
+    // Akun sudah di-revoke admin tapi EA belum konfirmasi (mis. baru
+    // online lagi setelah sempat offline saat di-revoke) — terus
+    // titipkan command REVOKE di setiap balasan sampai EA meng-ack-nya,
+    // JANGAN proses snapshot state seperti biasa.
+    if (existing?.revoked) {
+      return res.status(200).json({ ok: true, command: "REVOKE", revoked: true });
+    }
 
     if (boundHash && licenseKeyHash && String(boundHash) !== licenseKeyHash) {
       return res.status(409).json({
