@@ -20,10 +20,19 @@ export default async function handler(req, res) {
 
     const { data, error } = await supabase
       .from("accounts")
-      .select("pending_command")
+      .select("pending_command, revoked")
       .eq("account_login", account)
       .maybeSingle();
     if (error) return res.status(500).json({ ok: false, error: String(error) });
+
+    // Akun sudah di-revoke admin: TERUS balas REVOKE di jalur cadangan ini
+    // juga (jangan konsumsi/kosongkan pending_command) — hanya ea-update.js
+    // yang boleh menghapusnya, dan hanya setelah EA mengirim revokeAck.
+    // Ini menutup celah EA yg cuma polling ea-command.js tanpa pernah
+    // sukses ea-update.js (mis. jaringan terbatas / rate limit berbeda).
+    if (data?.revoked) {
+      return res.status(200).json({ ok: true, command: "REVOKE" });
+    }
 
     const cmd = data?.pending_command || "";
     if (cmd) {
