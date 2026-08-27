@@ -1429,6 +1429,9 @@ backdrop.addEventListener('click', ()=>{ sidebar.classList.remove('open'); backd
    ============================================================ */
 let toastTimer;
 function showToast(msg){
+  if (typeof msg !== 'string') {
+    msg = (msg && (msg.message || msg.error)) ? String(msg.message || msg.error) : 'Terjadi kesalahan tidak terduga';
+  }
   const t = document.getElementById('toast');
   document.getElementById('toastMsg').textContent = msg;
   t.classList.add('show');
@@ -2126,6 +2129,9 @@ const loginSubmitBtn = loginForm.querySelector('button[type="submit"]');
 const LOGIN_SESSION_KEY = 'gsp_session';
 
 function setLoginError(msg, tone){
+  if (typeof msg !== 'string') {
+    msg = (msg && (msg.message || msg.error)) ? String(msg.message || msg.error) : 'Terjadi kesalahan tidak terduga';
+  }
   loginErrorMsg.textContent = msg;
   loginError.classList.remove('hidden');
   if(tone === 'gold'){
