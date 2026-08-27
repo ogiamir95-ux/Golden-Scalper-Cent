@@ -7,6 +7,7 @@ import {
   setCors,
   todayDateKeyWIB,
   purgeRevokedAccount,
+  isLicenseRevoked,
 } from "../lib/db.js";
 
 // Dipanggil oleh EA (WebRequest POST) setiap beberapa detik untuk mengirim
@@ -41,6 +42,32 @@ export default async function handler(req, res) {
     }
 
     const licenseKeyHash = String(body.licenseKeyHash ?? "");
+
+    // BLACKLIST PERMANEN: dicek PALING AWAL, bahkan sebelum tahu apakah
+    // akun ini baru (belum pernah ada baris `accounts`) atau lama —
+    // supaya kode lisensi yang pernah di-revoke admin TIDAK BISA dipakai
+    // lagi walau EA dipasang ulang dari nol (baris accounts lama sudah
+    // hilang, jadi tanpa cek ini TOFU akan menganggapnya akun baru & sync
+    // diterima begitu saja). Berbeda dari revoke per-akun (field `revoked`
+    // di tabel accounts), blacklist ini terikat ke HASH KODE LISENSI itu
+    // sendiri, jadi kode lisensi baru untuk akun yang sama tetap normal.
+    if (licenseKeyHash) {
+      const blacklisted = await isLicenseRevoked(licenseKeyHash);
+      if (blacklisted) {
+        // Balas command REVOKE (bukan sekadar menolak dgn error) supaya EA
+        // yang baru saja restart dgn kode lisensi lama ini tetap dipaksa
+        // menjalankan aksi InpLicenseAction (finish cycle/close, stop/remove)
+        // — bukan cuma dashboard yang berhenti ter-update sementara EA
+        // jalan terus di background.
+        return res.status(200).json({
+          ok: true,
+          command: "REVOKE",
+          revoked: true,
+          error: "Kode lisensi ini sudah dicabut permanen oleh admin.",
+        });
+      }
+    }
+
     const existing = await getAccount(accountLogin);
     const boundHash = existing?.license_key_hash;
 
