@@ -24,6 +24,23 @@ alter table accounts add column if not exists license_expires_at date;
 alter table accounts add column if not exists revoked boolean not null default false;
 alter table accounts add column if not exists revoked_at timestamptz;
 
+-- ============================================================
+-- BLACKLIST LISENSI PERMANEN — terpisah & TIDAK ikut terhapus saat baris
+-- `accounts` dihapus (baik lewat alur revoke normal maupun dihapus manual
+-- oleh admin di Supabase). Begitu satu kode lisensi (diidentifikasi lewat
+-- hash-nya, sama seperti license_key_hash) pernah di-revoke admin, hash
+-- itu dicatat di sini SELAMANYA. Kalau EA yang sama dipasang ulang dan
+-- mengirim kode lisensi yang SAMA (hash sama), server akan menolaknya
+-- lagi walau baris `accounts` sudah tidak ada / sudah dianggap akun baru.
+-- Kode lisensi BARU (hash berbeda) untuk akun yang sama tetap boleh dipakai.
+-- ============================================================
+create table if not exists revoked_licenses (
+  license_key_hash text primary key,
+  account_login    text,
+  revoked_at       timestamptz not null default now(),
+  reason           text
+);
+
 -- Log aktivitas EA
 create table if not exists ea_logs (
   id            bigint generated always as identity primary key,
@@ -100,6 +117,7 @@ alter table accounts enable row level security;
 alter table ea_logs enable row level security;
 alter table journal_entries enable row level security;
 alter table web_users enable row level security;
+alter table revoked_licenses enable row level security;
 
 -- ============================================================
 -- MIGRASI (jalankan ini SAJA di Supabase SQL Editor jika database
@@ -108,6 +126,13 @@ alter table web_users enable row level security;
 -- alter table accounts add column if not exists license_expires_at date;
 -- alter table accounts add column if not exists revoked boolean not null default false;
 -- alter table accounts add column if not exists revoked_at timestamptz;
+-- create table if not exists revoked_licenses (
+--   license_key_hash text primary key,
+--   account_login    text,
+--   revoked_at       timestamptz not null default now(),
+--   reason           text
+-- );
+-- alter table revoked_licenses enable row level security;
 
 -- ============================================================
 -- Membuat admin PERTAMA — jalankan manual satu kali di SQL Editor
