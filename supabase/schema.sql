@@ -41,6 +41,13 @@ create table if not exists revoked_licenses (
   reason           text
 );
 
+-- Dipakai oleh isAccountEverRevoked() di lib/db.js saat REGISTRASI akun
+-- web baru: cek cepat apakah sebuah Akun ID (account_login) pernah punya
+-- lisensi yang dicabut admin sebelumnya, supaya Akun ID bekas-revoke wajib
+-- EA sync ulang dulu sebelum boleh daftar ulang akun web.
+create index if not exists idx_revoked_licenses_account
+  on revoked_licenses (account_login);
+
 -- Log aktivitas EA
 create table if not exists ea_logs (
   id            bigint generated always as identity primary key,
