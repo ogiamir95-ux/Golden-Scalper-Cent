@@ -87,6 +87,14 @@ export default async function handler(req, res) {
       status: user.status,
     });
   } catch (err) {
-    return res.status(500).json({ ok: false, error: String(err) });
+    // Constraint unik di Supabase (mis. email atau account_login dobel akibat
+    // race condition submit ganda) sebelumnya lolos sbg "[object Object]"
+    // krn error Supabase bukan instance Error biasa. Sekarang diterjemahkan
+    // ke pesan yang jelas.
+    const rawMsg = err?.message || err?.error_description || err?.hint || String(err);
+    const friendly = /duplicate key|unique constraint/i.test(rawMsg)
+      ? "Email atau Akun ID ini sudah terdaftar sebelumnya."
+      : rawMsg;
+    return res.status(500).json({ ok: false, error: friendly });
   }
 }
