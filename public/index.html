@@ -706,7 +706,7 @@ input[type=color]{width:42px;height:32px;padding:2px;border-radius:7px;border:1p
           <label for="loginUser">Akun ID (Nomor Akun MT5) </label>
           <div class="login-input-row">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
-            <input class="input" id="loginUser" placeholder="mis. 12345678" autocomplete="off" inputmode="numeric">
+            <input class="input" id="loginUser" placeholder="mis. 12345678 " autocomplete="off" inputmode="numeric">
           </div>
         </div>
 
@@ -2130,7 +2130,11 @@ const LOGIN_SESSION_KEY = 'gsp_session';
 
 function setLoginError(msg, tone){
   if (typeof msg !== 'string') {
-    msg = (msg && (msg.message || msg.error)) ? String(msg.message || msg.error) : 'Terjadi kesalahan tidak terduga';
+    if (msg && typeof msg === 'object') {
+      msg = String(msg.message || msg.error || msg.hint || msg.details || 'Terjadi kesalahan tidak terduga');
+    } else {
+      msg = 'Terjadi kesalahan tidak terduga';
+    }
   }
   loginErrorMsg.textContent = msg;
   loginError.classList.remove('hidden');
