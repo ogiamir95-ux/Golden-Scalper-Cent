@@ -95,20 +95,34 @@ create trigger trg_accounts_updated_at
 -- Akun login WEB (Gmail + password) — TERPISAH dari data EA/MT5 di
 -- tabel `accounts`. Ini hanya lapisan identitas untuk masuk ke panel;
 -- validasi lisensi EA (real-time) tetap dilakukan seperti sebelumnya
--- terhadap `accounts.state`, jadi tabel ini TIDAK bisa dipakai untuk
--- membuat/menghasilkan lisensi baru — cuma mengaitkan satu email ke
--- satu account_login yang datanya sudah ada di tabel `accounts`.
+-- terhadap `accounts.state`.
+--
+-- account_login SENGAJA TIDAK punya foreign key ke accounts(account_login).
+-- Sebelumnya ada constraint `references accounts(account_login)` yang
+-- mewajibkan Akun ID MT5 sudah ada baris di `accounts` (artinya EA sudah
+-- pernah sync) SEBELUM bisa daftar akun web — ini salah utk Akun ID yang
+-- BELUM PERNAH terdaftar sama sekali (harus bebas daftar, tunggu approve
+-- admin, EA tidak wajib online dulu). Aturan "wajib EA sync dulu" HANYA
+-- berlaku utk Akun ID yang PERNAH di-revoke admin sebelumnya, dan itu
+-- sudah divalidasi di level aplikasi lewat isAccountEverRevoked() di
+-- api/auth-register.js — bukan lewat constraint database ini.
 -- ============================================================
 create table if not exists web_users (
   id                bigint generated always as identity primary key,
   email             text not null unique,
   password_hash     text not null,
-  account_login     text references accounts(account_login) on delete set null,
+  account_login     text,
   role              text not null default 'user',
   status            text not null default 'pending',
   created_at        timestamptz not null default now(),
   updated_at        timestamptz not null default now()
 );
+
+-- Migrasi utk database yang sudah ada: hapus foreign key constraint lama
+-- di kolom account_login (aman dijalankan berkali-kali, no-op jika sudah
+-- tidak ada). INI YANG PERLU DIJALANKAN kalau tabel web_users sudah
+-- dibuat sebelumnya dengan constraint tsb.
+alter table web_users drop constraint if exists web_users_account_login_fkey;
 
 create index if not exists idx_web_users_email on web_users (lower(email));
 
