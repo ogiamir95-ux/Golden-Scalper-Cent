@@ -10,11 +10,19 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ ok: false, error: "Method not allowed" });
 
+  // Dideklarasikan di luar try supaya tetap terjangkau di blok catch di
+  // bawah (dipakai utk menyusun pesan error yang jelas). Sebelumnya
+  // accountLogin dideklarasikan di dalam try — kalau error terjadi
+  // sebelum baris itu tereksekusi, catch melempar ReferenceError sendiri
+  // (accountLogin is not defined) dan menutupi error aslinya, membuat
+  // request selalu gagal dengan 500 generik / tidak ada respons.
+  let accountLogin = "";
+
   try {
     const body = req.body || {};
     const email = String(body.email || "").trim().toLowerCase();
     const password = String(body.password || "");
-    const accountLogin = String(body.accountLogin || "").trim();
+    accountLogin = String(body.accountLogin || "").trim();
 
     if (!email || !password) {
       return res.status(400).json({ ok: false, error: "Email dan password wajib diisi" });
