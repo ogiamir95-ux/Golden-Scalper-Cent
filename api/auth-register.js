@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { getWebUserByEmail, createWebUser, setCors, supabase } from "../lib/db.js";
+import { getWebUserByEmail, createWebUser, setCors, supabase, isAccountEverRevoked } from "../lib/db.js";
 
 // Daftar akun WEB baru (Gmail + password). Ini HANYA identitas login
 // panel — bukan lisensi EA. Setelah daftar, status akun = "pending"
@@ -27,18 +27,34 @@ export default async function handler(req, res) {
       return res.status(400).json({ ok: false, error: "Password minimal 8 karakter" });
     }
 
+    // WAJIB: Akun ID (Nomor Akun MT5) harus diisi saat registrasi (identitas
+    // yang nanti dikaitkan admin ke akun web ini).
+    if (!accountLogin) {
+      return res.status(400).json({
+        ok: false,
+        error: "Akun ID (Nomor Akun MT5) wajib diisi saat daftar.",
+      });
+    }
+
     const existing = await getWebUserByEmail(email);
     if (existing) {
       return res.status(409).json({ ok: false, error: "Email sudah terdaftar — silakan masuk" });
     }
 
-    // Kolom web_users.account_login punya foreign key ke accounts(account_login)
-    // (ON DELETE SET NULL). Kalau Akun ID MT5 yang diisi belum pernah sync
-    // sama sekali ke server (belum ada baris di `accounts`) — misalnya
-    // karena baru saja dihapus admin atau EA belum pernah online — insert
-    // akan gagal dgn error constraint mentah dari Postgres yang membingungkan.
-    // Cek dulu di sini supaya pesan errornya jelas & bisa ditindaklanjuti.
-    if (accountLogin) {
+    // BEKAS-REVOKE GUARD: kalau Akun ID ini PERNAH punya lisensi yang
+    // dihapus/dicabut admin sebelumnya (tercatat permanen di
+    // revoked_licenses.account_login), maka SEBELUM boleh daftar ulang,
+    // EA wajib sudah sync ULANG ke server dengan Akun ID ini (baris baru
+    // muncul lagi di tabel `accounts`) — supaya admin tahu akun ini benar
+    // sudah pakai lisensi baru yang sah, bukan sekadar coba-coba pasang
+    // nomor akun bekas orang lain yang lisensinya sudah dicabut.
+    //
+    // Akun ID yang BELUM PERNAH di-revoke sama sekali (baik baru maupun
+    // sudah lama dipakai tapi belum pernah dihapus admin) TIDAK kena
+    // aturan ini — bebas daftar & tinggal menunggu approve admin, EA
+    // tidak wajib online/sync dulu.
+    const everRevoked = await isAccountEverRevoked(accountLogin);
+    if (everRevoked) {
       const { data: accRow, error: accErr } = await supabase
         .from("accounts")
         .select("account_login")
@@ -49,8 +65,8 @@ export default async function handler(req, res) {
         return res.status(400).json({
           ok: false,
           error:
-            "Akun ID MT5 '" + accountLogin + "' belum terdaftar di server. " +
-            "Pastikan EA sudah pernah online & berhasil sync minimal sekali sebelum daftar akun web.",
+            "Akun ID MT5 '" + accountLogin + "' pernah dicabut lisensinya oleh admin. " +
+            "Pasang EA dengan kode lisensi BARU dan pastikan sudah berhasil sync minimal sekali sebelum daftar ulang akun web.",
         });
       }
     }
