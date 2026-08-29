@@ -92,9 +92,18 @@ export default async function handler(req, res) {
     // krn error Supabase bukan instance Error biasa. Sekarang diterjemahkan
     // ke pesan yang jelas.
     const rawMsg = err?.message || err?.error_description || err?.hint || String(err);
-    const friendly = /duplicate key|unique constraint/i.test(rawMsg)
-      ? "Email atau Akun ID ini sudah terdaftar sebelumnya."
-      : rawMsg;
+    let friendly = rawMsg;
+    if (/duplicate key|unique constraint/i.test(rawMsg)) {
+      friendly = "Email atau Akun ID ini sudah terdaftar sebelumnya.";
+    } else if (/foreign key constraint.*account_login/i.test(rawMsg)) {
+      // Jaring pengaman kedua: seharusnya sudah ditangkap oleh guard
+      // isAccountEverRevoked() di atas SEBELUM sampai insert, tapi kalau
+      // race condition atau ada baris lolos, tetap balas pesan manusiawi
+      // bukan error Postgres mentah.
+      friendly =
+        "Akun ID MT5 '" + accountLogin + "' belum terdaftar di server atau pernah dicabut lisensinya oleh admin. " +
+        "Pastikan EA sudah pernah online & berhasil sync minimal sekali dengan Akun ID ini sebelum daftar.";
+    }
     return res.status(500).json({ ok: false, error: friendly });
   }
 }
