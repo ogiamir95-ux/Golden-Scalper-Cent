@@ -706,7 +706,7 @@ input[type=color]{width:42px;height:32px;padding:2px;border-radius:7px;border:1p
           <label for="loginUser">Akun ID (Nomor Akun MT5) </label>
           <div class="login-input-row">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
-            <input class="input" id="loginUser" placeholder="mis. 12345678 (kosongkan untuk admin)" autocomplete="off" inputmode="numeric">
+            <input class="input" id="loginUser" placeholder="mis. 12345678" autocomplete="off" inputmode="numeric">
           </div>
         </div>
 
@@ -751,7 +751,7 @@ input[type=color]{width:42px;height:32px;padding:2px;border-radius:7px;border:1p
           <label for="regAccount">Akun ID (Nomor Akun MT5) — Wajib</label>
           <div class="login-input-row">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
-            <input class="input" id="regAccount" placeholder="mis. 12345678" autocomplete="off" inputmode="numeric">
+            <input class="input" id="regAccount" placeholder="mis. 12345678" autocomplete="off" inputmode="numeric" required="">
           </div>
         </div>
 
@@ -2265,6 +2265,10 @@ registerForm.addEventListener('submit', async (e)=>{
   loginError.classList.add('hidden');
   if(!email || !pass || !pass2){
     setLoginError('Email dan password wajib diisi');
+    return;
+  }
+  if(!accountLogin){
+    setLoginError('Akun ID (Nomor Akun MT5) wajib diisi');
     return;
   }
   if(pass.length < 8){
